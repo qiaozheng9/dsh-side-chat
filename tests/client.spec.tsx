@@ -1,0 +1,57 @@
+// @vitest-environment jsdom
+import { act } from 'react-dom/test-utils'
+import { describe, expect, it, vi } from 'vitest'
+import { apply } from '../src/client/index.tsx'
+import type { Context } from '../src/context-types.ts'
+import { setupReactAct } from './test-utils.ts'
+vi.mock('../src/client/SideChatPanel.tsx', () => ({ SideChatPanel: () => null }))
+setupReactAct()
+function context(failTitle = false) {
+  const cleanup: (() => void)[] = []
+  const removed = vi.fn()
+  const closed = vi.fn()
+  const slots: { name: string; id?: string; key?: string }[] = []
+  const kinds: { kind: string }[] = []
+  const source = vi.fn(() => () => {})
+  const locale = { active: 'en' }
+  const ctx = {
+    locale: { getSnapshot: () => locale, subscribe: () => () => {} },
+    get: (name: string) => ({
+      sidebarRight: { registerCloseHandler: () => closed },
+      sidebarRightTabs: { register: (def: { kind: string }) => { kinds.push(def); return removed } },
+      inputTriggers: { registerSource: source },
+    })[name],
+    inject: (_deps: string[], callback: (ctx: unknown) => void) => { callback(ctx); return () => {} },
+    effect: (fn: () => (() => void)) => { const off = fn(); cleanup.push(off); return off },
+    slots: {
+      inject: (_name: string, callback: () => (() => void)) => callback(),
+      register: (spec: { name: string; id?: string; key?: string }) => {
+        if (failTitle && spec.name.endsWith('.title')) throw new Error('title seat unavailable')
+        slots.push(spec); return () => {}
+      },
+    },
+  }
+  return { ctx: ctx as unknown as Context, kinds, slots, source, removed, closed, dispose: () => { cleanup.reverse().forEach(off => off()) } }
+}
+describe('native side chat contribution', () => {
+  it('registers one native kind and a uniquely identified composer entry, then unmounts cleanly', () => {
+    const h = context()
+    act(() => { apply(h.ctx) })
+    expect(h.kinds.map(item => item.kind)).toEqual(['dsh-side-chat'])
+    expect(h.slots.find(item => item.name === 'conversation.input.left')?.id).toBe('dsh-side:open')
+    expect(h.source).toHaveBeenCalledTimes(1)
+    expect(document.querySelectorAll('[data-dsh-side-selection]')).toHaveLength(1)
+    act(() => { h.dispose() })
+    expect(h.removed).toHaveBeenCalledTimes(1)
+    expect(h.closed).toHaveBeenCalledTimes(1)
+    expect(document.querySelectorAll('[data-dsh-side-selection]')).toHaveLength(0)
+  })
+  it('rolls back the native type if a later slot fails to register', () => {
+    const h = context(true)
+    expect(() => apply(h.ctx)).toThrow('title seat unavailable')
+    expect(h.removed).toHaveBeenCalledTimes(1)
+    expect(h.closed).toHaveBeenCalledTimes(1)
+    h.dispose()
+    expect(h.removed).toHaveBeenCalledTimes(1)
+  })
+})
