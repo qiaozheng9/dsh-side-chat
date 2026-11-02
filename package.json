@@ -1,11 +1,16 @@
 {
   "name": "dsh-side-chat",
-  "version": "0.1.10",
+  "version": "0.1.11",
   "description": "Standalone Codex-style /side conversations for DSH",
   "type": "module",
   "license": "MIT",
+  "repository": { "type": "git", "url": "git+https://github.com/qiaozheng9/dsh-side-chat.git" },
+  "homepage": "https://github.com/qiaozheng9/dsh-side-chat#readme",
+  "bugs": { "url": "https://github.com/qiaozheng9/dsh-side-chat/issues" },
+  "keywords": ["deepseek-harness", "dsh-plugin", "side-chat", "conversation", "codex-side"],
   "engines": {
-    "node": ">=20"
+    "node": ">=22",
+    "dsh": "0.2.1-rc.5"
   },
   "packageManager": "pnpm@11.8.0",
   "main": "lib/index.js",
@@ -26,6 +31,9 @@
     "cordis.patch.yml",
     "dsh.plugin.json",
     "README.md",
+    "CHANGELOG.md",
+    "screenshots.json",
+    "assets/screenshots",
     "LICENSE",
     "NOTICE.md"
   ],

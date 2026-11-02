@@ -4,6 +4,28 @@
 
 支持 `/side`、`/side 问题`、主对话划词追问、上下文快照继承、多标签、独立选择模型与推理等级、流式 Markdown 回复、停止回复和关闭删除。只保留侧边对话相关代码。
 
+Standalone contextual side conversations for DSH, inspired by Codex `/side`. Supports independent models and permissions, goal management, plan review, attachments, compaction, and per-side-chat log export. The current complete installation targets **Windows DSH Desktop 0.2.1-rc.5** and requires [dsh-delete-session](https://github.com/qiaozheng9/dsh-delete-session) for permanent cleanup on close.
+
+## 安装发行包
+
+当前完整支持 **Windows DSH Desktop 0.2.1-rc.5**。先按 [dsh-delete-session 的安装说明](https://github.com/qiaozheng9/dsh-delete-session#安装)安装并启用删除服务；它需要适配桌面程序，不能仅用一个 npm 包替代这一步。未安装删除服务时，侧边对话会保留并提示关闭失败，不会假装已删除。
+
+随后安装预构建包，无需在用户机器执行本插件的构建脚本：
+
+```powershell
+dsh plugin --profile desktop add https://github.com/qiaozheng9/dsh-side-chat/releases/download/v0.1.11/dsh-side-chat-0.1.11.tgz
+```
+
+重启 DSH 后输入 `/side`。如果已有其他插件提供 `/side`，请先停用该功能，避免命令冲突。其他宿主版本、独立 Web 部署与操作系统尚未完成端到端验证。
+
+## 界面
+
+![侧边对话菜单，包含文件、文件夹、目标、计划、压缩、权限、模型和日志下载](assets/screenshots/side-menu.png)
+
+![当前侧边对话内的计划审核](assets/screenshots/plan-review.png)
+
+![关闭临时侧边对话前的永久删除确认](assets/screenshots/close-dialog.png)
+
 ## 文件入口
 
 - `src/index.ts`：服务端插件入口与 HTTP/WebSocket 路由。
@@ -16,7 +38,7 @@
 
 ## 构建与安装
 
-需要 Node.js 20+、pnpm 和兼容的 DSH 0.2.1-rc.1+。
+开发构建需要 Node.js 22+ 和 pnpm。完整安装环境见上方说明。
 
 ```powershell
 pnpm install --frozen-lockfile --registry https://registry.npmmirror.com
@@ -25,7 +47,7 @@ pnpm lint
 pnpm test
 pnpm build
 pnpm pack
-$pluginPath = (Resolve-Path './dsh-side-chat-0.1.10.tgz').Path.Replace('\', '/')
+$pluginPath = (Resolve-Path './dsh-side-chat-0.1.11.tgz').Path.Replace('\', '/')
 dsh plugin --profile desktop add "file:$pluginPath"
 ```
 
