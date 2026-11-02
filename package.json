@@ -31,9 +31,13 @@
     "cordis.patch.yml",
     "dsh.plugin.json",
     "README.md",
+    "README.en.md",
+    "docs/development.md",
     "CHANGELOG.md",
     "screenshots.json",
     "assets/screenshots",
+    "assets/logo.svg",
+    "assets/overview.svg",
     "LICENSE",
     "NOTICE.md"
   ],

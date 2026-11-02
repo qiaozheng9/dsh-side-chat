@@ -1,78 +1,160 @@
+<div align="center">
+
+<img src="assets/logo.svg" width="72" height="72" alt="DSH Side Chat" />
+
 # DSH Side Chat
 
-独立的 DSH `/side` 侧边对话插件。源码、构建、测试和安装声明都在本目录内，不依赖原来的 Better Sidebar 包或源码目录。
+**主对话继续做事，侧边对话随时追问。**
 
-支持 `/side`、`/side 问题`、主对话划词追问、上下文快照继承、多标签、独立选择模型与推理等级、流式 Markdown 回复、停止回复和关闭删除。只保留侧边对话相关代码。
+把 Codex 风格的 `/side` 带到 DeepSeek Harness。
 
-Standalone contextual side conversations for DSH, inspired by Codex `/side`. Supports independent models and permissions, goal management, plan review, attachments, compaction, and per-side-chat log export. The current complete installation targets **Windows DSH Desktop 0.2.1-rc.5** and requires [dsh-delete-session](https://github.com/qiaozheng9/dsh-delete-session) for permanent cleanup on close.
+<p>
+  <a href="https://github.com/qiaozheng9/dsh-side-chat/releases/latest"><img src="https://img.shields.io/github/v/release/qiaozheng9/dsh-side-chat?style=flat-square&amp;color=4d6bfe" width="94" height="20" alt="Latest release" /></a>
+  <a href="#安装"><img src="https://img.shields.io/badge/DSH-0.2.1--rc.5-4d6bfe?style=flat-square" width="108" height="20" alt="DSH 0.2.1-rc.5" /></a>
+  <a href="#安装"><img src="https://img.shields.io/badge/Windows-Desktop-0078d4?style=flat-square" width="112" height="20" alt="Windows Desktop" /></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/qiaozheng9/dsh-side-chat?style=flat-square" width="78" height="20" alt="MIT License" /></a>
+</p>
 
-## 安装发行包
+**简体中文** · [English](README.en.md)
 
-当前完整支持 **Windows DSH Desktop 0.2.1-rc.5**。先按 [dsh-delete-session 的安装说明](https://github.com/qiaozheng9/dsh-delete-session#安装)安装并启用删除服务；它需要适配桌面程序，不能仅用一个 npm 包替代这一步。未安装删除服务时，侧边对话会保留并提示关闭失败，不会假装已删除。
+[功能](#功能) · [安装](#安装) · [使用](#使用) · [常见问题](#常见问题) · [更新记录](CHANGELOG.md)
 
-随后安装预构建包，无需在用户机器执行本插件的构建脚本：
+</div>
+
+主对话正在实现功能，你想先弄清一个技术选择、检查一段代码，或者讨论另一种方案？在主对话输入 `/side`，就能在右侧打开一个带有当前上下文的独立对话。
+
+侧边对话有自己的消息、模型和权限。你可以继续追问、添加文件、制定计划，也可以同时打开多个侧边对话。
+
+<p align="center">
+  <img src="assets/overview.svg" width="960" alt="工作方式示意：主对话继续推进任务，打开时的上下文传递给独立侧边对话，用于解释、核对和讨论。" />
+</p>
+
+## 功能
+
+| 功能 | 你可以做什么 |
+| --- | --- |
+| **带上下文的追问** | 打开时继承主对话的上下文；也可选中主对话中的文字，直接在侧边询问。 |
+| **独立的模型与权限** | 使用 DSH 原生选择器切换模型、推理等级和权限，设置仅作用于当前侧边对话。 |
+| **文件、图片与文件夹** | 为当前侧边对话添加参考材料，让它围绕具体内容回答。 |
+| **目标与计划** | 创建、编辑、暂停或继续目标；进入计划模式，在侧边审核模型提交的计划。 |
+| **多标签对话** | 同时保留多个侧边讨论，分别处理不同问题。 |
+| **压缩与日志导出** | 压缩当前侧边的上下文，或将它的消息、执行日志及引用附件下载为 ZIP。 |
+| **关闭后清理** | 关闭前确认，确认后永久删除该临时对话。需要保留内容时，先下载日志。 |
+
+### 熟悉的 DSH 操作
+
+输入框、模型和权限控件沿用 DSH 的原生样式。点击 **＋**，文件、文件夹、目标、计划、压缩、权限、模型和日志下载都在这里。
+
+<p align="center">
+  <img src="assets/screenshots/side-menu.png" width="560" alt="侧边加号菜单：原生图标、命令别名和右侧说明。" />
+</p>
+
+### 计划在侧边审核，关闭前明确确认
+
+<table>
+  <tr>
+    <td width="56%" valign="top">
+      <strong>计划审核</strong><br /><br />
+      查看模型提交的计划，选择批准，或补充意见继续规划。<br /><br />
+      <img src="assets/screenshots/plan-review.png" width="420" alt="侧边对话中的计划审核面板。" />
+    </td>
+    <td width="44%" valign="top">
+      <strong>临时对话清理</strong><br /><br />
+      关闭前提示不可恢复；取消会保留对话，删除失败时也会保留并允许重试。<br /><br />
+      <img src="assets/screenshots/close-dialog.png" width="330" alt="关闭侧边对话前的删除确认弹窗。" />
+    </td>
+  </tr>
+</table>
+
+## 安装
+
+> [!IMPORTANT]
+> 当前完整支持 **Windows · DSH Desktop `0.2.1-rc.5`**。请先按 [dsh-delete-session 的安装说明](https://github.com/qiaozheng9/dsh-delete-session#安装)安装并启用删除服务，再安装本插件。该服务负责关闭后的永久清理，安装过程包含它所需的桌面程序适配。
+
+在 PowerShell 中执行：
 
 ```powershell
 dsh plugin --profile desktop add https://github.com/qiaozheng9/dsh-side-chat/releases/download/v0.1.11/dsh-side-chat-0.1.11.tgz
 ```
 
-重启 DSH 后输入 `/side`。如果已有其他插件提供 `/side`，请先停用该功能，避免命令冲突。其他宿主版本、独立 Web 部署与操作系统尚未完成端到端验证。
+**重启 DSH，然后在主对话输入 `/side`。** 发行包已预构建，安装本插件无需在本机编译。
 
-## 界面
+如果已启用其他插件的 `/side` 功能，请先停用同名入口，避免命令冲突。其他 DSH 版本、独立 Web 部署及其他操作系统尚未完成端到端验证。
 
-![侧边对话菜单，包含文件、文件夹、目标、计划、压缩、权限、模型和日志下载](assets/screenshots/side-menu.png)
+## 使用
 
-![当前侧边对话内的计划审核](assets/screenshots/plan-review.png)
+### 1. 打开侧边对话
 
-![关闭临时侧边对话前的永久删除确认](assets/screenshots/close-dialog.png)
+在**主对话输入框**输入：
 
-## 文件入口
-
-- `src/index.ts`：服务端插件入口与 HTTP/WebSocket 路由。
-- `src/client/index.tsx`：客户端插件入口、原生标签、命令和划词入口。
-- `src/client/SideChatPanel.tsx` 与同名 CSS：对话界面。
-- `src/client/commands.ts`、`api.ts`、`store.ts`：命令、请求和线程状态。
-- `src/sidechat-core.ts`、`sidechat-routes.ts`：上下文继承与子会话操作。
-- `src/assistant-live.ts`、`sidechat-push.ts`：实时回复与增量推送。
-- `src/context-types.ts`：仅包含侧边对话所用的宿主契约。
-
-## 构建与安装
-
-开发构建需要 Node.js 22+ 和 pnpm。完整安装环境见上方说明。
-
-```powershell
-pnpm install --frozen-lockfile --registry https://registry.npmmirror.com
-pnpm typecheck
-pnpm lint
-pnpm test
-pnpm build
-pnpm pack
-$pluginPath = (Resolve-Path './dsh-side-chat-0.1.11.tgz').Path.Replace('\', '/')
-dsh plugin --profile desktop add "file:$pluginPath"
+```text
+/side
 ```
 
-把 `desktop` 换成实际使用的 profile。安装不会自动停用旧版同功能插件；应在目标 profile 停用旧的 `/side` 提供者，避免两个入口同时处理同一命令。
+也可以直接带上问题：
 
-包名为 `dsh-side-chat`，原生标签 kind 为 `dsh-side-chat`，路由使用 `/side-chat/api/*` 与 `/side-chat/ws`。挂载只通过自己的 `cordis.patch.yml`，无需修改 DSH 源码。
+```text
+/side 解释一下刚才这个方案的取舍，还有哪些替代方案？
+```
 
-构建后 `lib/index.js` 是完整服务端文件，`lib/client.js` 是完整客户端文件，`lib/client-registry.js` 供市场通道使用。DSH 的服务端与浏览器运行在不同环境，因此保留两个运行入口；源码另提供单个 ZIP 文件，便于整体保存。
+选中主对话中的一段文字，点击 **「在侧边对话中询问」**，即可围绕选中的内容继续讨论。
 
-## 验证
+### 2. 按当前问题选择工具
 
-`pnpm test:browser` 使用已构建客户端、模拟宿主和确定性回复验证完整交互，并生成亮暗及窄屏截图。需要 Playwright Chromium，或设置 `SIDE_BROWSER_PATH` 指向本机浏览器。
+- 点击输入框下方的模型或权限控件，设置当前侧边对话。
+- 点击 **＋ → 文件／文件夹**，添加参考材料；图片也可以通过文件入口添加。
+- 点击 **＋ → 目标** 管理长期目标，或通过 **＋ → 计划** 进入、退出计划模式。
+- 点击侧边顶部的 **＋**，再开一个独立讨论。
 
-`pnpm test:mount` 使用真实 DSH；运行前设置 `DSH_E2E_URL` 为隔离测试 profile 打印的带 token 地址，避免使用现有用户 profile 做冒烟测试。
+### 3. 保留结果，再关闭
 
-输入框使用 DSH 原版的圆角、阴影、间距及发送按钮设计变量。模型和权限控件从宿主公开的 Slot 注册表复用原生组件，`1017` 等版本标识也由原版模型标签组件渲染。上下文继承冻结于打开时，模型与推理等级仅影响当前侧边对话。
+需要留存时，先点击 **＋ → 下载日志**。关闭侧边对话时，选择 **「删除并关闭」** 会停止相关侧边活动并清理该对话的数据；选择取消则继续保留。
 
-“＋”菜单支持添加文件、图片和文件夹。DSH 桌面版可提供的本地文件与文件夹路径作为引用发送；图片及浏览器文件由宿主附件服务验证并接纳。最多 10 项，单个上传 8 MB、总计 16 MB。文件读取和消息只进入当前侧边对话。
+## 常见问题
 
-侧边权限默认继承主对话。权限菜单与原版一致，完全权限和自动审查选项沿用原版风险确认，切换不会改动主对话。需要人工审批的侧边操作显示“允许一次／拒绝”，批准仅适用于该次请求，取消或关闭会撤销等待。选择原生自动审查模式时继续使用宿主的审查流程。
+<details>
+<summary><strong>会改变主对话或其他侧边对话吗？</strong></summary>
 
-侧边对话是临时对话，每次关闭都会提示永久删除。确认后调用当前 DSH 已启用的 `dsh-delete-session` 永久删除事务，停止该侧边任务并清理其会话文件、索引及独占数据；共享的主对话数据不删除。清理成功才关闭标签，失败保留面板并提示重试。此存储适配需要 `dsh-delete-session` 插件；未启用时会明确报错，不会假装已删除。取消关闭保留内容。
+侧边消息独立处理，模型、权限、目标和计划操作只作用于当前侧边对话。上下文取自打开时的主对话快照。
 
-来源与版权说明见 [NOTICE.md](NOTICE.md) 和 [LICENSE](LICENSE)。
+</details>
 
-侧边“＋”菜单包含文件、文件夹、目标、计划、模型、权限、压缩和下载日志，沿用原版图标、命令别名和右侧说明。目标支持查看、创建、编辑、暂停、继续和清除，全部通过当前侧边 agent 的原生目标服务操作。计划模式通过当前侧边的原生 `/plan` 命令进入或退出，计划审核与追问在该侧边单独显示并等待用户回答；切换不会修改主对话或其他侧边对话。
+<details>
+<summary><strong>为什么关闭时提示删除失败？</strong></summary>
 
-模型和权限打开当前侧边的原生控件；压缩只调用当前侧边 agent 的 `/compact`。日志 ZIP 包含 `conversation.md`、`session.jsonl` 和当前侧边新增消息引用的附件，排除主对话继承历史、边界快照和模型请求／压缩快照；不导出其他侧边会话。ZIP 为诊断与阅读用途，不是会话恢复包。关闭确认使用 DSH 原生模态窗口，默认聚焦取消，红色“删除并关闭”执行清理；会先取消侧边操作、停用目标的自动继续并撤回未回答的问题，再删除临时会话。
+请确认 [dsh-delete-session](https://github.com/qiaozheng9/dsh-delete-session#安装) 已按其文档完成安装，并在同一个 `desktop` profile 中启用。删除没有成功时，面板会保留，方便处理后重试。
+
+</details>
+
+<details>
+<summary><strong>下载的日志包含哪些内容？</strong></summary>
+
+ZIP 包含当前侧边新增的消息、执行日志及其引用附件，不打包继承的主对话历史或其他侧边对话。它用于阅读和诊断，不是 DSH 会话恢复包。
+
+</details>
+
+<details>
+<summary><strong>关闭会删除我添加的项目文件吗？</strong></summary>
+
+会话清理会保留你引用的项目文件和共享数据，清理的是该侧边对话的消息及相关独占数据。确认删除后，对话内容无法通过本插件恢复。
+
+</details>
+
+<details>
+<summary><strong>可以从 npm 或 GitHub 源码直接安装吗？</strong></summary>
+
+目前请使用上方的 **GitHub Release 预构建包**。主分支存放开发源码，直接安装 GitHub 主分支不会自动生成运行文件。自行构建的步骤见 [开发文档](docs/development.md)。
+
+</details>
+
+## 反馈与贡献
+
+遇到问题时，请在 [Issues](https://github.com/qiaozheng9/dsh-side-chat/issues) 提供 DSH 版本、插件版本、复现步骤及相关截图；日志请先确认不含敏感内容。
+
+欢迎提交改进。[开发文档](docs/development.md)包含构建、验证与代码入口，[更新记录](CHANGELOG.md)列出各版本变化。
+
+## 致谢与许可
+
+侧边对话核心提取自 [Better Sidebar](https://github.com/omdsh-dev/DSH-better-sidebar)，交互参考 Codex `/side`。感谢上游项目。
+
+[MIT License](LICENSE) · [来源与版权说明](NOTICE.md)
