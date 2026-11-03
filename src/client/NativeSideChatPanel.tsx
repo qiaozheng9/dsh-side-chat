@@ -4,6 +4,7 @@ import type { SideThread, SideThreads } from './store.ts'
 import { CloseDialog } from './CloseDialog.tsx'
 import { sideCopy } from './locales.ts'
 import css from './SideChatPanel.module.css'
+import { DisplayBoundary } from './display-boundary.tsx'
 
 export const NATIVE_CONVERSATION_SLOT = 'dsh-side-chat.conversation'
 interface SessionReference {
@@ -101,7 +102,7 @@ export function NativeSideChatPanel({ ctx, threads, record, visible, onNew, onCl
       }}>{copy.retry}</button></div>}
       <div className={css.nativeContent}>
         {reference === undefined ? <div className={css.empty} role="status">{copy.loadingChat}</div>
-          : <SessionProvider session={reference}>{renderSlot(NATIVE_CONVERSATION_SLOT, {})}</SessionProvider>}
+          : <DisplayBoundary.Provider value={record.displayStartSeq}><SessionProvider session={reference}>{renderSlot(NATIVE_CONVERSATION_SLOT, {})}</SessionProvider></DisplayBoundary.Provider>}
       </div>
       {closePrompt && <CloseDialog copy={copy} busy={record.closing !== undefined} error={record.error} cancel={() => { setClosePrompt(false) }} confirm={() => { void close() }} />}
     </section>

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.1
+
+- Start side chats with an empty transcript while preserving the forked main-chat context for the model. Display only messages created after opening.
+- Apply the same display boundary to native chat groups, turn navigation, history paging and trajectory records. Preserve native streaming, timestamps, token usage, tools and controls.
+- Verify the installed Windows Desktop plugin: contextual follow-ups, 18 streaming updates, independent copies, model/permission isolation, attachments, plan approval, ZIP export and confirmed deletion. The stable source session file remains byte-for-byte unchanged.
+
 ## 0.2.0
 
 - Replace the custom transcript and composer with DSH's official SessionProvider and Conversation content Factory, including native timestamps, token usage, message actions, controls and command menus.

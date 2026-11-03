@@ -52,7 +52,9 @@ export function buildNativeSidechatApi(ctx: Context) {
       // /side's optional first question goes through the native browser input
       // machine after it retains this identity. Failed sends remain retryable
       // drafts instead of hiding an already-created fork from its owner.
-      return { childId: child.sessionId }
+      if (childSession === undefined) throw new SidebarError('sidechat-error', 'The native fork is not available for display initialization.', 500)
+      const displayStartSeq = (childSession.snapshotEvents().at(-1)?.seq ?? -1) + 1
+      return { childId: child.sessionId, displayStartSeq }
     },
     'sidechat.cancel': async (payload: unknown) => {
       const childId = assertOwned(payload)

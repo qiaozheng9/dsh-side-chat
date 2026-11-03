@@ -24,6 +24,7 @@ function context(failTitle = false) {
     inject: (_deps: string[], callback: (ctx: unknown) => void) => { callback(ctx); return () => {} },
     effect: (fn: () => (() => void)) => { const off = fn(); cleanup.push(off); return off },
     slots: {
+      entries: () => [], subscribe: () => () => {},
       inject: (_name: string, callback: () => (() => void)) => callback(),
       register: (spec: { name: string; id?: string; key?: string }) => {
         if (failTitle && spec.name.endsWith('.title')) throw new Error('title seat unavailable')

@@ -25,13 +25,13 @@ Your main chat is implementing a feature, but you want to understand a design ch
 
 Each side chat has its own messages, model and permissions. Attach reference files, discuss a plan, or keep several side conversations open at once.
 
-**Version 0.2.0 reuses DSH's native chat.** DSH's Session fork creates the copy; the official Conversation component provides timestamps, token usage, streaming, the composer and command menu. This plugin manages only sidebar entry points and the temporary session's creation and confirmed deletion.
+**A clean transcript with the context preserved.** Side chats display only messages added after opening, while the model retains the main chat's context at that point. Timestamps, token usage, streaming, the composer and command menus continue to use DSH's native components.
 
 ## Features
 
 | Feature | What you can do |
 | --- | --- |
-| **Contextual follow-ups** | Start with the main chat's context, or select text in its transcript and ask about that passage. |
+| **Contextual follow-ups** | Open with an empty transcript and the main chat's context, or select a passage to ask about it. |
 | **Independent models and permissions** | Use native DSH controls to choose the model, reasoning effort and permission preset for this side chat. |
 | **Native attachments and references** | Use the same file, image and `@` reference features as the main chat. |
 | **Goals and plans** | Create, edit, pause and resume goals; enter plan mode and review the submitted plan in the side panel. |
@@ -74,7 +74,7 @@ The transcript and composer use the actual native components. The **＋** menu f
 Run in PowerShell:
 
 ```powershell
-dsh plugin --profile desktop add https://github.com/qiaozheng9/dsh-side-chat/releases/download/v0.2.0/dsh-side-chat-0.2.0.tgz
+dsh plugin --profile desktop add https://github.com/qiaozheng9/dsh-side-chat/releases/download/v0.2.1/dsh-side-chat-0.2.1.tgz
 ```
 
 **Restart DSH, then enter `/side` in the main chat.** This is a prebuilt package; installing it requires no local compilation.

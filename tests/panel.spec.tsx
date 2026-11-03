@@ -32,7 +32,7 @@ const locale = { active: 'en' }
 const ctx = { locale: { subscribe: () => () => {}, getSnapshot: () => locale } } as unknown as Context
 let root: RenderedRoot | undefined
 beforeEach(() => {
-  vi.mocked(sideApi.start).mockResolvedValue({ childId: 'child' })
+  vi.mocked(sideApi.start).mockResolvedValue({ childId: 'child', displayStartSeq: 0 })
   vi.mocked(sideApi.events).mockResolvedValue({ events: [], live: [], pending: [] })
   vi.mocked(sideApi.info).mockResolvedValue({ live: true, status: 'idle' })
   vi.mocked(sideApi.prompt).mockResolvedValue({})

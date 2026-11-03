@@ -17,7 +17,7 @@ pnpm pack
 安装自行构建的包：
 
 ```powershell
-$pluginPath = (Resolve-Path './dsh-side-chat-0.2.0.tgz').Path.Replace('\', '/')
+$pluginPath = (Resolve-Path './dsh-side-chat-0.2.1.tgz').Path.Replace('\', '/')
 dsh plugin --profile desktop add "file:$pluginPath"
 ```
 
@@ -44,12 +44,16 @@ pnpm test:browser
 | `src/index.ts` | 服务端入口，仅临时会话生命周期 HTTP 路由，无自建流式通道。 |
 | `src/client/index.tsx` | 客户端入口、原生标签、命令与划词入口。 |
 | `src/client/NativeSideChatPanel.tsx` | 保留独立原生 Session 引用，使用 SessionProvider 和 conversation.content 工厂。 |
+| `src/client/display-boundary.tsx` | 仅在侧边 Provider 中过滤继承的显示记录；复用原生 View 的组件、注入、状态和授权渲染入口。 |
 | `src/client/api.ts`、`store.ts` | 请求与侧边对话生命周期。 |
 | `src/native-sidechat.ts` | 调用 DSH 原生 Session fork，登记临时身份并限制关闭操作范围。 |
 | `scripts/verify-native-fork-installed.mjs` | 专用真实聊天：指令继承、时间/用量、菜单、流式、主对话隔离与永久删除。 |
 | `scripts/verify-native-fork-controls.mjs` | 专用真实聊天：模型/权限、原生附件、计划审核与导出。 |
+| `scripts/verify-native-boundary-installed.mjs`、`verify-native-boundary-controls.mjs` | 0.2.1 专用验收：空白开场、继承暗号、原生显示与工具、主会话文件不变及关闭删除。 |
 
 0.1.x 的手绘面板、事件轮询、推送与审批桥接源文件保留作历史回归参考，不进入 0.2.0 的运行入口。新运行路径不向模型注入侧边边界提示，不自行重画消息或输入框。
+
+0.2.1 的显示起点取自原生分支创建完成后的最后事件序号，不截断 Session 数据，也不改写模型提示。DSH rc.5 没有公开的消息显示偏移参数，因此通过公开 slot ledger 的可写组件入口，为原生 chat/trajectory View 添加会话局部的选择器适配；保留原 entry 的 inject、store、locale 和 renderSlot 授权，卸载时还原。主对话不在侧边 Provider 中，收到原始 props。该适配依赖已验证的 rc.5 原生快照结构，升级宿主后需要重新验证。
 
 ## 发行结构
 

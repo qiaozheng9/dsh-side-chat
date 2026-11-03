@@ -5,6 +5,7 @@ export interface SideThread {
   parentId: string
   index: number
   childId?: string
+  displayStartSeq?: number
   ready?: Promise<void>
   error?: string
   quote?: string
@@ -23,8 +24,9 @@ export function createSideThreads() {
   const start = (record: SideThread): void => {
     if (record.ready !== undefined || record.closed) return
     record.error = undefined
-    record.ready = sideApi.start(record.parentId, record.question).then(async ({ childId }) => {
+    record.ready = sideApi.start(record.parentId, record.question).then(async ({ childId, displayStartSeq }) => {
       record.childId = childId
+      record.displayStartSeq = displayStartSeq
     }).catch((error: unknown) => {
       record.error = error instanceof Error ? error.message : String(error)
     }).finally(() => { record.ready = undefined; emit() })

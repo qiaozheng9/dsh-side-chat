@@ -39,7 +39,7 @@ async function deleteTemporarySession(childId: string): Promise<void> {
   await sideCall('sidechat.dispose', { childId })
 }
 export const sideApi = {
-  start: (sessionId: string, question = '') => sideCall<{ childId: string }>('sidechat.start', { sessionId, question }),
+  start: (sessionId: string, question = '') => sideCall<{ childId: string; displayStartSeq: number }>('sidechat.start', { sessionId, question }),
   prompt: (childId: string, text: string, attachments?: SidechatAttachment[]) => sideCall('sidechat.prompt', { childId, text, ...(attachments === undefined ? {} : { attachments }) }),
   permissions: (childId: string, signal?: AbortSignal) => sideCall<SidechatPermissions>('sidechat.permissions', { childId }, signal),
   permission: (childId: string, preset: string) => sideCall<SidechatPermissions>('sidechat.permission', { childId, preset, acknowledged: preset === 'danger-full-access' || preset === 'auto' }),

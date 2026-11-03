@@ -9,6 +9,7 @@ import { createSideThreads, type SideThread, type SideThreads } from './store.ts
 import { sideCopy } from './locales.ts'
 import { sideCommandSource } from './commands.ts'
 import css from './SideChatPanel.module.css'
+import { installDisplayBoundary } from './display-boundary.tsx'
 
 export const inject = ['slots', 'sessions', 'locale']
 const TYPE_ID = 'dsh-side-chat:sidechat'
@@ -97,6 +98,7 @@ function SelectionAction({ ctx, open }: { ctx: Context; open: BodyProps['open'] 
 }
 
 export function apply(ctx: Context): void {
+  ctx.effect(() => installDisplayBoundary(ctx.slots as unknown as Parameters<typeof installDisplayBoundary>[0]), 'sidechat: native display boundary')
   const threads = createSideThreads()
   const bindings = new Map<string, SideThread>()
   const copy = () => sideCopy(ctx.locale.getSnapshot().active)

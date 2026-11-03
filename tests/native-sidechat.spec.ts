@@ -4,7 +4,7 @@ import { buildNativeSidechatApi } from '../src/native-sidechat.ts'
 
 function fixture(events: { seq: number }[] = [{ seq: 0 }, { seq: 1 }, { seq: 2 }]) {
   const parent = { header: { cwd: '/workspace', agentPreset: 'native' }, snapshotEvents: () => events }
-  const child = { header: { parentSession: 'parent' }, snapshotEvents: () => [] }
+  const child = { header: { parentSession: 'parent' }, snapshotEvents: () => [...events, { seq: 9 }] }
   const fork = vi.fn().mockResolvedValue({ sessionId: 'child' })
   const create = vi.fn().mockResolvedValue({ sessionId: 'child' })
   const prompt = vi.fn()
@@ -25,7 +25,7 @@ describe('native temporary forks', () => {
   it('delegates the exact source prefix to DSH and never injects a model-facing boundary or starts an extra request', async () => {
     const h = fixture()
     const before = h.parent.snapshotEvents()
-    expect(await h.api['sidechat.start']({ sessionId: 'parent', question: 'first question' })).toEqual({ childId: 'child' })
+    expect(await h.api['sidechat.start']({ sessionId: 'parent', question: 'first question' })).toEqual({ childId: 'child', displayStartSeq: 10 })
     expect(h.fork).toHaveBeenCalledExactlyOnceWith({ sessionId: 'parent', atSeq: 2 })
     expect(h.prompt).not.toHaveBeenCalled()
     expect(h.parent.snapshotEvents()).toBe(before)
