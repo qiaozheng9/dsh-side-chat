@@ -25,21 +25,27 @@ Your main chat is implementing a feature, but you want to understand a design ch
 
 Each side chat has its own messages, model and permissions. Attach reference files, discuss a plan, or keep several side conversations open at once.
 
+**Version 0.2.0 reuses DSH's native chat.** DSH's Session fork creates the copy; the official Conversation component provides timestamps, token usage, streaming, the composer and command menu. This plugin manages only sidebar entry points and the temporary session's creation and confirmed deletion.
+
 ## Features
 
 | Feature | What you can do |
 | --- | --- |
 | **Contextual follow-ups** | Start with the main chat's context, or select text in its transcript and ask about that passage. |
 | **Independent models and permissions** | Use native DSH controls to choose the model, reasoning effort and permission preset for this side chat. |
-| **Reference materials** | Add files, images and local folder references to the current side chat. |
+| **Native attachments and references** | Use the same file, image and `@` reference features as the main chat. |
 | **Goals and plans** | Create, edit, pause and resume goals; enter plan mode and review the submitted plan in the side panel. |
 | **Multiple tabs** | Keep separate discussions open for different questions. |
-| **Compaction and export** | Compact the current side chat or download its new messages, execution logs and referenced attachments as a ZIP. |
+| **Timestamps, usage and export** | See native message times, token usage and execution details; use native compaction and log export. |
 | **Temporary conversations** | Confirm before permanently deleting a side chat. Download its logs first if you want to keep a copy. |
 
 ### Native DSH controls
 
-The composer, model picker and permission controls follow DSH's native interface. The **＋** menu brings together attachments, goals, plans, compaction, permissions, models and log export.
+The transcript and composer use the actual native components. The **＋** menu follows the main chat, including files, goals, plans, feedback, compaction, permissions, models and log export, as provided by your DSH installation.
+
+<p align="center">
+  <img src="assets/screenshots/native-chat.png" width="560" alt="Actual native DSH verification chat with timestamps, token usage and message actions; interface shown in Chinese." />
+</p>
 
 <p align="center">
   <img src="assets/screenshots/side-menu.png" width="560" alt="Side-chat menu with native icons and descriptions; interface shown in Chinese." />
@@ -68,7 +74,7 @@ The composer, model picker and permission controls follow DSH's native interface
 Run in PowerShell:
 
 ```powershell
-dsh plugin --profile desktop add https://github.com/qiaozheng9/dsh-side-chat/releases/download/v0.1.12/dsh-side-chat-0.1.12.tgz
+dsh plugin --profile desktop add https://github.com/qiaozheng9/dsh-side-chat/releases/download/v0.2.0/dsh-side-chat-0.2.0.tgz
 ```
 
 **Restart DSH, then enter `/side` in the main chat.** This is a prebuilt package; installing it requires no local compilation.
@@ -90,7 +96,7 @@ Enter either command in the **main chat composer**:
 You can also select text in the main transcript and choose **Ask in side chat**.
 
 - Use the model and permission controls beneath the side-chat input to configure that conversation.
-- Use **＋ → File / Folder** to add reference materials, including images through the file picker.
+- Use **＋ → File** to attach files or images, and the native `@` entry point for references.
 - Use **＋ → Goal** to manage a goal, or **＋ → Plan** to enter or leave plan mode.
 - Use **＋** in the side-panel header to start another side chat.
 - Use **＋ → Download logs** before closing if you want to retain the results.
@@ -99,11 +105,11 @@ Choosing **Delete and close** stops the side activity and permanently cleans up 
 
 ## FAQ
 
-**Does this change the main chat?** Each side chat handles its own messages, model, permissions, goals and plan state. It starts with a snapshot of the main chat's context at opening.
+**Does this change the main chat?** The copy has a new Session ID and its own messages, goals, plans and permissions. The open main chat's content and selections remain independent. The fork inherits the existing history and applicable user instructions, without an extra side-chat boundary prompt. Native preference-saving rules follow DSH itself.
 
 **Why does closing fail?** Check that dsh-delete-session is installed and enabled in the same `desktop` profile. Failed cleanup keeps the panel open for retry.
 
-**What is exported?** The ZIP contains this side chat's new messages, execution logs and referenced attachments. Inherited main-chat history and other side chats are excluded. The ZIP is for reading and diagnostics, not session restoration.
+**What is exported?** Native DSH export targets this copy, including its inherited main-chat history. Other independent side chats' subsequent messages are excluded. Inspect the contents before sharing.
 
 **Are my project files deleted?** Referenced project files and shared data are retained. Cleanup removes the side conversation and its exclusively owned data.
 

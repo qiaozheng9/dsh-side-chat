@@ -1,5 +1,6 @@
 /** Keep the small, standalone side chat surface independent of the workbench dictionaries. */
 const en = {
+  loadingChat: 'Opening conversation…',
   analyzing: 'Analyzing the request', analysisDone: 'Analysis complete', replying: 'Writing a response', processing: 'Processing…', callingTools: 'Calling tools', toolsDone: 'Called tools', toolFailed: 'Tool failed', completed: 'Completed', completedIn: 'Completed in ', stopped: 'Stopped', failed: 'Failed', hourUnit: 'h ', minuteUnit: 'm ', secondUnit: 's',
   fileAction: 'File', folderAction: 'Folder', goalAction: 'Goal', planAction: 'Plan',
   fileDescription: 'Attach files or images', folderDescription: 'Reference a local folder', goalDescription: 'Set or view a long-running goal', planDescription: 'Enter or leave plan mode', modelDescription: 'Choose the model for this chat', permissionDescription: 'Change sandbox and approval settings', compactDescription: 'Compact older conversation history', exportDescription: 'Download this chat as a ZIP',
@@ -22,6 +23,7 @@ const en = {
   addFilesMenu: 'Add files or folders', addFiles: 'Add files', addFolder: 'Add folder', removeAttachment: 'Remove attachment', folderDesktopOnly: 'Folder references require DSH Desktop.', fileTooLarge: 'Choose files of at most 8 MB, up to 10 files.', tooManyFiles: 'Choose at most 10 files.', waitingApproval: 'Waiting for approval', reject: 'Reject', allowOnce: 'Allow once',
 }
 const zh: typeof en = {
+  loadingChat: '正在打开对话…',
   analyzing: '正在分析请求', analysisDone: '已完成分析', replying: '正在回复', processing: '正在处理…', callingTools: '正在调用工具', toolsDone: '已调用工具', toolFailed: '工具调用失败', completed: '已完成', completedIn: '已完成，用时 ', stopped: '已停止', failed: '处理失败', hourUnit: '小时', minuteUnit: '分', secondUnit: '秒',
   fileAction: '文件', folderAction: '文件夹', goalAction: '目标', planAction: '计划',
   fileDescription: '添加文件或图片', folderDescription: '引用本地文件夹', goalDescription: '设置或查看长期任务目标', planDescription: '进入或退出计划模式', modelDescription: '选择本会话使用的模型', permissionDescription: '切换权限预设（沙箱模式与审批策略）', compactDescription: '压缩以上对话内容', exportDescription: '将当前会话内容导出为 ZIP',
@@ -43,6 +45,7 @@ const zh: typeof en = {
   addFilesMenu: '添加文件或文件夹', addFiles: '添加文件', addFolder: '添加文件夹', removeAttachment: '移除附件', folderDesktopOnly: '引用文件夹需要使用 DSH 桌面版。', fileTooLarge: '最多选择 10 个文件，单个上传不超过 8 MB，总计不超过 16 MB。', tooManyFiles: '最多选择 10 个文件。', waitingApproval: '等待审批', reject: '拒绝', allowOnce: '允许一次',
 }
 const ja: typeof en = {
+  loadingChat: '会話を開いています…',
   analyzing: 'リクエストを分析中', analysisDone: '分析完了', replying: '応答を作成中', processing: '処理中…', callingTools: 'ツールを実行中', toolsDone: 'ツール実行済み', toolFailed: 'ツール実行失敗', completed: '完了', completedIn: '完了、所要時間 ', stopped: '停止済み', failed: '処理失敗', hourUnit: '時間', minuteUnit: '分', secondUnit: '秒',
   fileAction: 'ファイル', folderAction: 'フォルダー', goalAction: '目標', planAction: '計画',
   fileDescription: 'ファイルや画像を添付', folderDescription: 'ローカルフォルダーを参照', goalDescription: '長期タスクの目標を設定・表示', planDescription: '計画モードの開始・終了', modelDescription: 'このチャットのモデルを選択', permissionDescription: 'サンドボックスと承認設定を変更', compactDescription: '過去の会話を圧縮', exportDescription: 'この会話を ZIP で保存',

@@ -25,6 +25,8 @@
 
 侧边对话有自己的消息、模型和权限。你可以继续追问、添加文件、制定计划，也可以同时打开多个侧边对话。
 
+**0.2.0 直接复用 DSH 原生聊天。** 会话由 DSH 的分支功能复制；消息时间、token 用量、流式回复、输入框和加号菜单均由原生 Conversation 组件提供。插件只管理侧栏入口和临时会话的创建、关闭与删除。
+
 <p align="center">
   <img src="assets/overview.svg" width="960" alt="工作方式示意：主对话继续推进任务，打开时的上下文传递给独立侧边对话，用于解释、核对和讨论。" />
 </p>
@@ -35,15 +37,19 @@
 | --- | --- |
 | **带上下文的追问** | 打开时继承主对话的上下文；也可选中主对话中的文字，直接在侧边询问。 |
 | **独立的模型与权限** | 使用 DSH 原生选择器切换模型、推理等级和权限，设置仅作用于当前侧边对话。 |
-| **文件、图片与文件夹** | 为当前侧边对话添加参考材料，让它围绕具体内容回答。 |
+| **原生附件与引用** | 沿用主对话的文件、图片和 `@` 引用能力，为当前副本添加参考材料。 |
 | **目标与计划** | 创建、编辑、暂停或继续目标；进入计划模式，在侧边审核模型提交的计划。 |
 | **多标签对话** | 同时保留多个侧边讨论，分别处理不同问题。 |
-| **压缩与日志导出** | 压缩当前侧边的上下文，或将它的消息、执行日志及引用附件下载为 ZIP。 |
+| **时间、用量与导出** | 查看原生消息时间、token 用量和执行过程，使用原生压缩与日志下载。 |
 | **关闭后清理** | 关闭前确认，确认后永久删除该临时对话。需要保留内容时，先下载日志。 |
 
 ### 熟悉的 DSH 操作
 
-输入框、模型和权限控件沿用 DSH 的原生样式。点击 **＋**，文件、文件夹、目标、计划、压缩、权限、模型和日志下载都在这里。
+聊天内容和输入框直接使用 DSH 原生组件。点击 **＋**，与主对话相同的文件、目标、计划、反馈、压缩、权限、模型和日志下载都在这里；具体项目随 DSH 原生功能而定。
+
+<p align="center">
+  <img src="assets/screenshots/native-chat.png" width="560" alt="真实 DSH 验证会话：原生消息时间、token 用量、消息操作与输入框。" />
+</p>
 
 <p align="center">
   <img src="assets/screenshots/side-menu.png" width="560" alt="侧边加号菜单：原生图标、命令别名和右侧说明。" />
@@ -74,7 +80,7 @@
 在 PowerShell 中执行：
 
 ```powershell
-dsh plugin --profile desktop add https://github.com/qiaozheng9/dsh-side-chat/releases/download/v0.1.12/dsh-side-chat-0.1.12.tgz
+dsh plugin --profile desktop add https://github.com/qiaozheng9/dsh-side-chat/releases/download/v0.2.0/dsh-side-chat-0.2.0.tgz
 ```
 
 **重启 DSH，然后在主对话输入 `/side`。** 发行包已预构建，安装本插件无需在本机编译。
@@ -102,7 +108,7 @@ dsh plugin --profile desktop add https://github.com/qiaozheng9/dsh-side-chat/rel
 ### 2. 按当前问题选择工具
 
 - 点击输入框下方的模型或权限控件，设置当前侧边对话。
-- 点击 **＋ → 文件／文件夹**，添加参考材料；图片也可以通过文件入口添加。
+- 点击 **＋ → 文件**，添加文件或图片；其他引用沿用主对话的 `@` 入口。
 - 点击 **＋ → 目标** 管理长期目标，或通过 **＋ → 计划** 进入、退出计划模式。
 - 点击侧边顶部的 **＋**，再开一个独立讨论。
 
@@ -115,7 +121,7 @@ dsh plugin --profile desktop add https://github.com/qiaozheng9/dsh-side-chat/rel
 <details>
 <summary><strong>会改变主对话或其他侧边对话吗？</strong></summary>
 
-侧边消息独立处理，模型、权限、目标和计划操作只作用于当前侧边对话。上下文取自打开时的主对话快照。
+侧边使用新的会话 ID，消息、目标、计划和权限绑定当前副本，已打开主对话的内容和选择不会被切换。复制的是打开时的历史与上下文，包括此前仍适用的用户指令；不额外注入“侧边对话”模式。原生控件的偏好保存规则与 DSH 本身一致。
 
 </details>
 
@@ -129,7 +135,7 @@ dsh plugin --profile desktop add https://github.com/qiaozheng9/dsh-side-chat/rel
 <details>
 <summary><strong>下载的日志包含哪些内容？</strong></summary>
 
-ZIP 包含当前侧边新增的消息、执行日志及其引用附件，不打包继承的主对话历史或其他侧边对话。它用于阅读和诊断，不是 DSH 会话恢复包。
+使用 DSH 原生的日志导出，范围是当前副本，包含复制进来的主对话历史；不会导出其他独立侧边的后续消息。分享前请自行检查内容。
 
 </details>
 

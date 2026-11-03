@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.0
+
+- Replace the custom transcript and composer with DSH's official SessionProvider and Conversation content Factory, including native timestamps, token usage, message actions, controls and command menus.
+- Create an ordinary independent Session using DSH's native fork. Preserve copied history and applicable instructions without injecting a side-conversation boundary.
+- Use the native Session streaming transport instead of side-chat invalidation sockets and polling.
+- Keep confirmed permanent deletion through dsh-delete-session and restrict lifecycle operations to plugin-created temporary identities.
+- Use native log export for the copied session, including inherited history. This replaces 0.1.x's side-only export format.
+
 ## 0.1.12
 
 - Answer normally without announcing side-chat boundaries; update guidance once for existing temporary chats on their next message.

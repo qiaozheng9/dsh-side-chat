@@ -24,6 +24,7 @@ test('standalone side chat mounts in the real DSH host', async ({ page }) => {
     const result = await (await created).json() as { ok: boolean; value: { childId: string } }
     expect(result.ok).toBe(true)
     await expect(page.locator('[data-dsh-side-chat]')).toBeVisible()
+    await expect(page.locator('[data-dsh-native-side-chat] [data-conversation-content]')).toHaveAttribute('data-conversation-session', result.value.childId)
     const editor = composerEditable(page)
     await editor.click()
     await editor.pressSequentially('/side', { delay: 80 })
@@ -32,7 +33,7 @@ test('standalone side chat mounts in the real DSH host', async ({ page }) => {
     expect((await (await second).json()).ok).toBe(true)
     await expect(page.locator('[data-dsh-side-chat]')).toHaveCount(2)
     await expect(editor).toHaveText('')
-    const composer = page.locator('[data-dsh-side-chat]:visible form')
+    const composer = page.locator('[data-dsh-native-side-chat]:visible [data-composer-input]')
     await expect(composer).toBeVisible()
     // Native host features remain owned by the host, with no duplicate terminal.
     await page.locator('[data-dockkit-add-tab]').first().click()

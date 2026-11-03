@@ -4,7 +4,7 @@ import { createPortal } from 'react-dom'
 import { createRoot } from 'react-dom/client'
 import type { Context } from '../context-types.ts'
 import { RenderBoundary } from './RenderBoundary.tsx'
-import { SideChatPanel } from './SideChatPanel.tsx'
+import { NativeSideChatPanel, NativeConversation, NATIVE_CONVERSATION_SLOT, type NativeConversationHost } from './NativeSideChatPanel.tsx'
 import { createSideThreads, type SideThread, type SideThreads } from './store.ts'
 import { sideCopy } from './locales.ts'
 import { sideCommandSource } from './commands.ts'
@@ -28,7 +28,7 @@ interface TabRegistry {
 interface InputTriggers {
   registerSource(source: ReturnType<typeof sideCommandSource>): () => void
 }
-interface BodyProps {
+interface BodyProps extends NativeConversationHost {
   ctx: Context; sessionId: string; threads: SideThreads; bindings: Map<string, SideThread>
   useTabInfo(): TabInfo
   open(parentId: string, question?: string, quote?: string): void
@@ -45,7 +45,7 @@ function SideBody(props: BodyProps): React.ReactNode {
     bindings.set(key, thread)
     return thread
   })
-  return <RenderBoundary className={css.error}><SideChatPanel ctx={ctx} threads={threads} record={record} visible={tab.visible} onNew={() => { open(sessionId) }} onClose={() => { tab.actions.close() }} /></RenderBoundary>
+  return <RenderBoundary className={css.error}><NativeSideChatPanel ctx={ctx} threads={threads} record={record} visible={tab.visible} onNew={() => { open(sessionId) }} onClose={() => { tab.actions.close() }} SessionProvider={props.SessionProvider} renderSlot={props.renderSlot} /></RenderBoundary>
 }
 function SideTitle({ ctx, sessionId, threads, bindings, useTabInfo }: Pick<BodyProps, 'ctx' | 'sessionId' | 'threads' | 'bindings' | 'useTabInfo'>): React.ReactNode {
   useSyncExternalStore(threads.subscribe, threads.version)
@@ -161,8 +161,10 @@ export function apply(ctx: Context): void {
     }))
     disposers.push(ctx.slots.inject('sidebar.right.pane.tab', () => ctx.slots.register({
       name: 'sidebar.right.pane.tab', key: TYPE_ID,
+      children: { [NATIVE_CONVERSATION_SLOT]: { kind: 'single', scope: 'session' } },
       inject: (sessionId: string) => ({ ctx, sessionId, threads, bindings, open }),
     }, SideBody)))
+    disposers.push(ctx.slots.inject(NATIVE_CONVERSATION_SLOT, () => ctx.slots.register({ name: NATIVE_CONVERSATION_SLOT }, NativeConversation)))
     disposers.push(ctx.slots.inject('sidebar.right.pane.tab.title', () => ctx.slots.register({
       name: 'sidebar.right.pane.tab.title', key: TYPE_ID,
       inject: (sessionId: string) => ({ ctx, sessionId, threads, bindings }),

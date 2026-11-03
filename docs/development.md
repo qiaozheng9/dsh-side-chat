@@ -17,7 +17,7 @@ pnpm pack
 安装自行构建的包：
 
 ```powershell
-$pluginPath = (Resolve-Path './dsh-side-chat-0.1.12.tgz').Path.Replace('\', '/')
+$pluginPath = (Resolve-Path './dsh-side-chat-0.2.0.tgz').Path.Replace('\', '/')
 dsh plugin --profile desktop add "file:$pluginPath"
 ```
 
@@ -33,7 +33,7 @@ pnpm check:consumer-types
 pnpm test:browser
 ```
 
-`test:browser` 验证构建后的客户端，使用模拟宿主和确定性回复，并在 `test-results/side-chat/` 保存亮色、暗色及窄屏截图。需要 Playwright Chromium，也可以设置 `SIDE_BROWSER_PATH` 指向本机浏览器。
+`test:browser` 验证构建产物的原生工厂挂载契约：独立 SessionProvider、原生输入机、多标签、划词和关闭清理。模拟宿主不冒充 DSH UI；原生界面、时间/用量、增量流式、菜单和删除隔离另用真实安装验证。需要 Playwright Chromium，也可以设置 `SIDE_BROWSER_PATH` 指向本机浏览器。
 
 `pnpm test:mount` 使用真实 DSH。运行前将 `DSH_E2E_URL` 设置为隔离测试 profile 打印的带 token 地址，使用专用测试数据。`scripts/verify-*-installed.mjs` 是维护者本机的专用安装验证脚本，含本机路径及测试会话配置，使用前须检查和调整。
 
@@ -41,14 +41,15 @@ pnpm test:browser
 
 | 文件 | 职责 |
 | --- | --- |
-| `src/index.ts` | 服务端插件入口、HTTP 与 WebSocket 路由。 |
+| `src/index.ts` | 服务端入口，仅临时会话生命周期 HTTP 路由，无自建流式通道。 |
 | `src/client/index.tsx` | 客户端入口、原生标签、命令与划词入口。 |
-| `src/client/SideChatPanel.tsx` | 侧边对话界面与交互。 |
+| `src/client/NativeSideChatPanel.tsx` | 保留独立原生 Session 引用，使用 SessionProvider 和 conversation.content 工厂。 |
 | `src/client/api.ts`、`store.ts` | 请求与侧边对话生命周期。 |
-| `src/sidechat-core.ts`、`sidechat-routes.ts` | 上下文继承、子会话与消息操作。 |
-| `src/sidechat-actions.ts` | 当前侧边的目标、计划、压缩和导出。 |
-| `src/sidechat-approvals.ts`、`sidechat-questions.ts` | 权限审批、计划审核与提问通道。 |
-| `src/assistant-live.ts`、`sidechat-push.ts` | 实时回复与增量推送。 |
+| `src/native-sidechat.ts` | 调用 DSH 原生 Session fork，登记临时身份并限制关闭操作范围。 |
+| `scripts/verify-native-fork-installed.mjs` | 专用真实聊天：指令继承、时间/用量、菜单、流式、主对话隔离与永久删除。 |
+| `scripts/verify-native-fork-controls.mjs` | 专用真实聊天：模型/权限、原生附件、计划审核与导出。 |
+
+0.1.x 的手绘面板、事件轮询、推送与审批桥接源文件保留作历史回归参考，不进入 0.2.0 的运行入口。新运行路径不向模型注入侧边边界提示，不自行重画消息或输入框。
 
 ## 发行结构
 

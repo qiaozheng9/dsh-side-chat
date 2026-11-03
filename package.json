@@ -1,6 +1,6 @@
 {
   "name": "dsh-side-chat",
-  "version": "0.1.12",
+  "version": "0.2.0",
   "description": "Standalone Codex-style /side conversations for DSH",
   "type": "module",
   "license": "MIT",
@@ -61,7 +61,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run --maxWorkers=1",
     "lint": "eslint .",
-    "test:browser": "node scripts/verify-browser.mjs",
+    "test:browser": "node scripts/verify-native-browser.mjs",
     "test:mount": "playwright test --config playwright.config.ts",
     "check:consumer-types": "tsc --noEmit --module esnext --moduleResolution bundler --target es2023 --jsx react-jsx --skipLibCheck tests/consumer.ts"
   },

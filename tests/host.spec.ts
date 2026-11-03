@@ -1,9 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { apply } from '../src/index.ts'
 import type { Context, SidebarWebRoute, SidebarHttpResponse } from '../src/context-types.ts'
-vi.mock('../src/assistant-live.ts', () => ({ createAssistantLiveBuffer: () => ({ dispose: vi.fn() }) }))
-vi.mock('../src/sidechat-push.ts', () => ({ createSidechatPushHub: () => ({ dispose: vi.fn(), attach: vi.fn() }) }))
-vi.mock('../src/sidechat-routes.ts', () => ({ buildSidechatApi: () => ({ 'sidechat.start': async (payload: unknown) => payload }) }))
+vi.mock('../src/native-sidechat.ts', () => ({ buildNativeSidechatApi: () => ({ 'sidechat.start': async (payload: unknown) => payload }) }))
 const cleanup: (() => void)[] = []
 afterEach(() => { while (cleanup.length > 0) cleanup.pop()!() })
 function harness(rejected = false) {
@@ -29,10 +27,10 @@ function harness(rejected = false) {
   }
 }
 describe('side chat only host surface', () => {
-  it('mounts only the side API and its push socket', async () => {
+  it('mounts only lifetime routes and leaves streaming to the native Session transport', async () => {
     const host = harness()
     expect(host.routes.map(route => route.path)).toEqual(['/side-chat/api'])
-    expect(host.upgrades).toEqual(['/side-chat/ws'])
+    expect(host.upgrades).toEqual([])
     expect(await host.request('sidechat.start')).toEqual({ status: 200, body: { ok: true, value: { sessionId: 'main' } } })
     for (const name of ['fs.write', 'fs.tree', 'git.commit', 'settings.update', 'constructor', 'toString', '../sidechat.start']) {
       expect((await host.request(name)).status).toBe(404)

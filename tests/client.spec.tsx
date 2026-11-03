@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { apply } from '../src/client/index.tsx'
 import type { Context } from '../src/context-types.ts'
 import { setupReactAct } from './test-utils.ts'
-vi.mock('../src/client/SideChatPanel.tsx', () => ({ SideChatPanel: () => null }))
+vi.mock('../src/client/NativeSideChatPanel.tsx', () => ({ NativeSideChatPanel: () => null, NativeConversation: () => null, NATIVE_CONVERSATION_SLOT: 'dsh-side-chat.conversation' }))
 setupReactAct()
 function context(failTitle = false) {
   const cleanup: (() => void)[] = []
