@@ -10,6 +10,7 @@ import { sideCopy } from './locales.ts'
 import { sideCommandSource } from './commands.ts'
 import css from './SideChatPanel.module.css'
 import { installDisplayBoundary } from './display-boundary.tsx'
+import { installTemporaryVisibility } from './temporary-visibility.tsx'
 
 export const inject = ['slots', 'sessions', 'locale']
 const TYPE_ID = 'dsh-side-chat:sidechat'
@@ -41,11 +42,16 @@ function SideBody(props: BodyProps): React.ReactNode {
   const [record] = useState(() => {
     const previous = bindings.get(key)
     if (previous !== undefined) return previous
+    if (tab.signal.aborted) return { id: tab.id, parentId: sessionId, index: 1, question: '', closed: true }
     const seed = tab.navigation.params?.sideId
     const thread = (seed === undefined ? undefined : threads.get(seed)) ?? threads.create(sessionId)
     bindings.set(key, thread)
+    // The native signal owns this cleanup even if React unmounts the body
+    // before the tab's removal transaction has finished.
+    tab.signal.addEventListener('abort', () => { bindings.delete(key) }, { once: true })
     return thread
   })
+  if (record.closed) return null
   return <RenderBoundary className={css.error}><NativeSideChatPanel ctx={ctx} threads={threads} record={record} visible={tab.visible} onNew={() => { open(sessionId) }} onClose={() => { tab.actions.close() }} SessionProvider={props.SessionProvider} renderSlot={props.renderSlot} /></RenderBoundary>
 }
 function SideTitle({ ctx, sessionId, threads, bindings, useTabInfo }: Pick<BodyProps, 'ctx' | 'sessionId' | 'threads' | 'bindings' | 'useTabInfo'>): React.ReactNode {
@@ -99,7 +105,9 @@ function SelectionAction({ ctx, open }: { ctx: Context; open: BodyProps['open'] 
 
 export function apply(ctx: Context): void {
   ctx.effect(() => installDisplayBoundary(ctx.slots as unknown as Parameters<typeof installDisplayBoundary>[0]), 'sidechat: native display boundary')
-  const threads = createSideThreads()
+  const threads = createSideThreads(() => (ctx.get('sessions') as unknown as { refresh(): Promise<unknown> }).refresh())
+  ctx.effect(() => installTemporaryVisibility(ctx.slots as unknown as Parameters<typeof installTemporaryVisibility>[0], threads.visibility), 'sidechat: exclude temporary conversations from left list')
+  void threads.initialize().catch(error => { console.error('[dsh-side] temporary-session cleanup failed', error) })
   const bindings = new Map<string, SideThread>()
   const copy = () => sideCopy(ctx.locale.getSnapshot().active)
   const open = (parentId: string, question = '', quote?: string): void => {
@@ -159,7 +167,9 @@ export function apply(ctx: Context): void {
         // panel has confirmed AND completed the asynchronous deletion.
         throw new Error('Side chat close is awaiting confirmation and deletion')
       }
-      bindings.delete(key)
+      // Keep the closed record until the native tab lifetime ends. The host can
+      // remount its body during removal; deleting the binding here would create
+      // an unowned replacement fork between confirmation and actual tab removal.
     }))
     disposers.push(ctx.slots.inject('sidebar.right.pane.tab', () => ctx.slots.register({
       name: 'sidebar.right.pane.tab', key: TYPE_ID,

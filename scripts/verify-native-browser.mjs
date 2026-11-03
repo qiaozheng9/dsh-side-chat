@@ -19,7 +19,8 @@ const server = createServer(async (req, res) => {
     calls.push({ path, payload })
     if (path === '/native/prompt') { expect(children.has(payload.id)).toBe(true); res.writeHead(200, { 'content-type': 'application/json' }); res.end(JSON.stringify({ answer: `NATIVE_ANSWER:${payload.id}` })); return }
     let value = {}
-    if (path.endsWith('/sidechat.start')) { const id = `child-${++serial}`; children.add(id); value = { childId: id, displayStartSeq: 0 } }
+    if (path.endsWith('/sidechat.temporary')) value = { childIds: [...children], abandonedIds: [] }
+    else if (path.endsWith('/sidechat.start')) { const id = `child-${++serial}`; children.add(id); value = { childId: id, displayStartSeq: 0 } }
     else if (path.endsWith('/preview')) value = { sessionId: payload.sessionId, token: 'test-confirmed' }
     else if (path.endsWith('/execute')) { children.delete(payload.sessionId); value = { sessionIds: [payload.sessionId] } }
     else if (!path.endsWith('/sidechat.cancel') && !path.endsWith('/sidechat.dispose')) throw new Error(`Unexpected plugin operation: ${path}`)

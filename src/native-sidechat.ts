@@ -2,6 +2,7 @@
  * streaming, approvals, commands and rendering stay with their native owners. */
 import type { Context } from './context-types.ts'
 import { requireString, SidebarError } from './wire.ts'
+import { createTemporarySessions, type TemporarySessions } from './temporary-sessions.ts'
 
 interface SessionView {
   header: { cwd?: string; agentPreset?: string; parentSession?: string }
@@ -12,32 +13,48 @@ interface Controller {
   create(request: { cwd?: string; agentPreset?: string }): Promise<{ sessionId: string }>
   cancel(request: { sessionId: string }): Promise<unknown>
 }
+/** Completion is published only after the installed deletion owner has stopped
+ * writers and removed storage, indexes and workspace references. Its gate then
+ * rejects ordinary Session reads, so do not probe a completed identity through
+ * those guarded services again. */
+function deletionReceipt(id: string): { completed: boolean; pending: boolean } {
+  const bridge = (globalThis as Record<symbol, { deleted?: Set<string>; blocked?: Set<string> } | undefined>)[Symbol.for('dsh-delete-session.bridge.v1')]
+  return { completed: bridge?.deleted?.has(id) === true, pending: bridge?.blocked?.has(id) === true }
+}
 
-export function buildNativeSidechatApi(ctx: Context) {
-  const owned = new Set<string>()
+export function buildNativeSidechatApi(ctx: Context, owned: TemporarySessions = createTemporarySessions(ctx)) {
+  const clientOf = (payload: unknown): string | undefined => {
+    const value = (payload as { clientId?: unknown } | null)?.clientId
+    if (value === undefined) return undefined
+    if (typeof value !== 'string' || !/^[a-zA-Z0-9-]{1,100}$/.test(value)) throw new SidebarError('bad-request', 'Invalid temporary-session client identity')
+    return value
+  }
   const controller = (): Controller => {
     const value = ctx.get('sessionController') as Controller | undefined
     if (value?.fork === undefined) throw new SidebarError('unavailable', 'This DSH version does not provide native Session forks.', 503)
     return value
   }
-  const assertOwned = (payload: unknown): string => {
+  const assertOwned = async (payload: unknown): Promise<string> => {
     const childId = requireString(payload, 'childId')
-    if (!owned.has(childId)) throw new SidebarError('forbidden', 'Only a temporary session created by this plugin can be closed.', 403)
+    if (!(await owned.list()).childIds.includes(childId)) throw new SidebarError('forbidden', 'Only a temporary session created by this plugin can be closed.', 403)
     return childId
   }
   return {
+    'sidechat.temporary': async (payload: unknown) => owned.list(clientOf(payload)),
     'sidechat.start': async (payload: unknown) => {
       const sessionId = requireString(payload, 'sessionId')
+      const clientId = clientOf(payload)
+      const native = controller()
+      await owned.list()
       const source = ctx.sessions.get(sessionId) as SessionView | undefined
       // The native fork owner can read cold sources. For a live source,
       // request its exact current prefix, including a safely closed open turn.
       const tail = source?.snapshotEvents().at(-1)?.seq
-      const native = controller()
       const child = source !== undefined && tail === undefined
         ? await native.create({ cwd: source.header.cwd, agentPreset: source.header.agentPreset })
         : await native.fork({ sessionId, ...(tail === undefined ? {} : { atSeq: tail }) })
       if (child.sessionId === sessionId) throw new SidebarError('sidechat-error', 'Native fork returned the source session identity.', 500)
-      owned.add(child.sessionId)
+      await owned.add(child.sessionId, clientId)
       const permissions = ctx.get('permissionPresets') as {
         current(session: SessionView): string
         set(session: SessionView, value: string): void
@@ -57,19 +74,27 @@ export function buildNativeSidechatApi(ctx: Context) {
       return { childId: child.sessionId, displayStartSeq }
     },
     'sidechat.cancel': async (payload: unknown) => {
-      const childId = assertOwned(payload)
+      const childId = await assertOwned(payload)
+      const receipt = deletionReceipt(childId)
+      if (receipt.completed) return { accepted: true, alreadyDeleted: true }
+      if (receipt.pending) return { accepted: true }
       const agent = (ctx.get('agents') as { get(id: string): unknown } | undefined)?.get(childId)
       const goals = ctx.get('goals') as { disarm?(agent: unknown): void } | undefined
       if (agent !== undefined) goals?.disarm?.(agent)
-      await controller().cancel({ sessionId: childId })
+      if (agent !== undefined) await controller().cancel({ sessionId: childId })
       return { accepted: true }
     },
     'sidechat.dispose': async (payload: unknown) => {
-      owned.delete(assertOwned(payload))
+      const childId = await assertOwned(payload)
+      const persistence = ctx.get('sessionPersistence') as { stat(id: string): Promise<unknown> } | undefined
+      if (!deletionReceipt(childId).completed && (persistence?.stat === undefined || ctx.sessions.get(childId) !== undefined || await persistence.stat(childId) !== undefined)) {
+        throw new SidebarError('sidechat-error', 'Temporary session storage has not been permanently deleted.', 409)
+      }
+      await owned.remove(childId)
       return { accepted: true }
     },
     'sidechat.info': async (payload: unknown) => {
-      const id = assertOwned(payload)
+      const id = await assertOwned(payload)
       const agent = (ctx.get('agents') as { get(id: string): { status: string } | undefined } | undefined)?.get(id)
       return { live: agent !== undefined, status: agent?.status ?? 'idle' }
     },

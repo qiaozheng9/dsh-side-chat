@@ -2,6 +2,15 @@ import { hostRouteUrl } from './host-route-url.ts'
 import type { SidechatTaskState } from '../sidechat-core.ts'
 import type { SidechatLiveEvent, SidechatLogEvent, SidechatPendingInput, SidechatThreadInfo, SidechatModelCatalog, SidechatModelSelection, SidechatPermissions, SidechatAttachment } from '../sidechat-core.ts'
 
+let clientIdentity: string | undefined
+function clientId(): string {
+  if (clientIdentity !== undefined) return clientIdentity
+  const key = 'dsh-side-chat.client'
+  try { clientIdentity = sessionStorage.getItem(key) ?? crypto.randomUUID(); sessionStorage.setItem(key, clientIdentity) }
+  catch { clientIdentity = crypto.randomUUID() }
+  return clientIdentity
+}
+
 export async function sideCall<T>(method: string, payload: unknown, signal?: AbortSignal): Promise<T> {
   const response = await fetch(hostRouteUrl(`side-chat/api/${method}`), {
     method: 'POST', credentials: 'same-origin', headers: { 'content-type': 'application/json' },
@@ -22,7 +31,8 @@ export interface SideFeed {
  * and unshared attachments. Never unlink a JSONL file behind a live writer. */
 async function deleteTemporarySession(childId: string): Promise<void> {
   // Stop a pending /compact before the storage owner drains the agent.
-  await sideCall('sidechat.cancel', { childId })
+  const stopped = await sideCall<{ alreadyDeleted?: boolean }>('sidechat.cancel', { childId })
+  if (stopped.alreadyDeleted === true) { await sideCall('sidechat.dispose', { childId }); return }
   const call = async <T>(method: string, payload: unknown): Promise<T> => {
     const response = await fetch(hostRouteUrl(`api/delete-session/${method}`), {
       method: 'POST', credentials: 'same-origin', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload),
@@ -39,7 +49,8 @@ async function deleteTemporarySession(childId: string): Promise<void> {
   await sideCall('sidechat.dispose', { childId })
 }
 export const sideApi = {
-  start: (sessionId: string, question = '') => sideCall<{ childId: string; displayStartSeq: number }>('sidechat.start', { sessionId, question }),
+  temporary: () => sideCall<{ childIds: string[]; abandonedIds: string[] }>('sidechat.temporary', { clientId: clientId() }),
+  start: (sessionId: string, question = '') => sideCall<{ childId: string; displayStartSeq: number }>('sidechat.start', { sessionId, question, clientId: clientId() }),
   prompt: (childId: string, text: string, attachments?: SidechatAttachment[]) => sideCall('sidechat.prompt', { childId, text, ...(attachments === undefined ? {} : { attachments }) }),
   permissions: (childId: string, signal?: AbortSignal) => sideCall<SidechatPermissions>('sidechat.permissions', { childId }, signal),
   permission: (childId: string, preset: string) => sideCall<SidechatPermissions>('sidechat.permission', { childId, preset, acknowledged: preset === 'danger-full-access' || preset === 'auto' }),

@@ -1,4 +1,5 @@
 import { sideApi } from './api.ts'
+import { createTemporaryVisibility } from './temporary-visibility.tsx'
 
 export interface SideThread {
   id: string
@@ -16,7 +17,22 @@ export interface SideThread {
 }
 
 /** Activation-owned records: StrictMode and hidden tab remounts share one start. */
-export function createSideThreads() {
+export function createSideThreads(refreshCatalog?: () => Promise<unknown>) {
+  const visibility = createTemporaryVisibility()
+  let initialization: Promise<void> | undefined
+  let synchronizationRequested = false
+  const forget = async (id: string): Promise<void> => {
+    // Native catalog notifications can lag the delete response. Refresh first
+    // so a stale row cannot flash back when its hidden identity is released.
+    try { await refreshCatalog?.(); visibility.remove(id) } catch { /* keep hidden until the next activation synchronizes */ }
+  }
+  const initialize = (): Promise<void> => {
+    synchronizationRequested = true
+    return initialization ??= sideApi.temporary().then(async ({ childIds, abandonedIds }) => {
+    visibility.initialize(childIds)
+    for (const id of abandonedIds) { await sideApi.dispose(id); await forget(id) }
+    }).catch((error: unknown) => { initialization = undefined; throw error })
+  }
   const records = new Map<string, SideThread>()
   const listeners = new Set<() => void>()
   let revision = 0
@@ -24,12 +40,15 @@ export function createSideThreads() {
   const start = (record: SideThread): void => {
     if (record.ready !== undefined || record.closed) return
     record.error = undefined
-    record.ready = sideApi.start(record.parentId, record.question).then(async ({ childId, displayStartSeq }) => {
+    const endCreation = visibility.begin()
+    const creation = synchronizationRequested ? initialize().then(() => sideApi.start(record.parentId, record.question)) : sideApi.start(record.parentId, record.question)
+    record.ready = creation.then(async ({ childId, displayStartSeq }) => {
       record.childId = childId
       record.displayStartSeq = displayStartSeq
+      visibility.add(childId)
     }).catch((error: unknown) => {
       record.error = error instanceof Error ? error.message : String(error)
-    }).finally(() => { record.ready = undefined; emit() })
+    }).finally(() => { endCreation(); record.ready = undefined; emit() })
     emit()
   }
   const close = (id: string): Promise<void> => {
@@ -39,7 +58,7 @@ export function createSideThreads() {
     record.error = undefined
     record.closing = Promise.resolve().then(async () => {
       await record.ready
-      if (record.childId !== undefined) await sideApi.dispose(record.childId)
+      if (record.childId !== undefined) { await sideApi.dispose(record.childId); await forget(record.childId) }
       record.closed = true
       records.delete(id)
     }).catch((error: unknown) => {
@@ -50,6 +69,7 @@ export function createSideThreads() {
     return record.closing
   }
   return {
+    visibility, initialize,
     subscribe(listener: () => void) { listeners.add(listener); return () => { listeners.delete(listener) } },
     version: () => revision,
     get: (id: string) => records.get(id),

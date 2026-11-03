@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.2
+
+- Exclude temporary side chats from the native left conversation list and search without removing the native catalog metadata needed by their composers and tools. Hold list updates during creation to prevent a brief visible row.
+- Persist exact temporary ownership and reclaim registered abandoned copies after a window reload or host restart. Remove the ownership registry after the last confirmed deletion.
+- Honor the deletion owner's completion receipt and preserve the closed native tab binding through removal, preventing a replacement fork from being created during a remount.
+- Verify installed Desktop cleanup of session files, projection caches, workspace references, browser drafts and exclusive attachment objects, while retaining original project files and the main conversation.
+
 ## 0.2.1
 
 - Start side chats with an empty transcript while preserving the forked main-chat context for the model. Display only messages created after opening.

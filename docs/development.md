@@ -17,7 +17,7 @@ pnpm pack
 安装自行构建的包：
 
 ```powershell
-$pluginPath = (Resolve-Path './dsh-side-chat-0.2.1.tgz').Path.Replace('\', '/')
+$pluginPath = (Resolve-Path './dsh-side-chat-0.2.2.tgz').Path.Replace('\', '/')
 dsh plugin --profile desktop add "file:$pluginPath"
 ```
 
@@ -47,6 +47,9 @@ pnpm test:browser
 | `src/client/display-boundary.tsx` | 仅在侧边 Provider 中过滤继承的显示记录；复用原生 View 的组件、注入、状态和授权渲染入口。 |
 | `src/client/api.ts`、`store.ts` | 请求与侧边对话生命周期。 |
 | `src/native-sidechat.ts` | 调用 DSH 原生 Session fork，登记临时身份并限制关闭操作范围。 |
+| `src/temporary-sessions.ts` | 只登记临时会话 ID 和窗口身份，支持刷新/重启后的遗留回收，最后一个副本删除后移除登记文件。 |
+| `src/client/temporary-visibility.tsx` | 对原生左侧浏览器的列表选择器做局部过滤，不改聊天组件使用的完整原生 Session catalog。 |
+| `scripts/verify-temporary-installed.mjs` | 专用实测：列表无闪现、上下文、完整清理、刷新回收，以及主对话文件不变。 |
 | `scripts/verify-native-fork-installed.mjs` | 专用真实聊天：指令继承、时间/用量、菜单、流式、主对话隔离与永久删除。 |
 | `scripts/verify-native-fork-controls.mjs` | 专用真实聊天：模型/权限、原生附件、计划审核与导出。 |
 | `scripts/verify-native-boundary-installed.mjs`、`verify-native-boundary-controls.mjs` | 0.2.1 专用验收：空白开场、继承暗号、原生显示与工具、主会话文件不变及关闭删除。 |

@@ -5,6 +5,12 @@ import { sideApi } from '../src/client/api.ts'
 afterEach(() => { vi.unstubAllGlobals() })
 const ok = (value: unknown) => new Response(JSON.stringify({ ok: true, value }), { headers: { 'content-type': 'application/json' } })
 describe('temporary session deletion transaction', () => {
+  it('finishes ownership cleanup when the deletion owner has already permanently removed the child', async () => {
+    const fetch = vi.fn().mockResolvedValueOnce(ok({ accepted: true, alreadyDeleted: true })).mockResolvedValueOnce(ok({ accepted: true }))
+    vi.stubGlobal('fetch', fetch)
+    await sideApi.dispose('child')
+    expect(fetch.mock.calls.map(([url]) => new URL(url).pathname)).toEqual(['/side-chat/api/sidechat.cancel', '/side-chat/api/sidechat.dispose'])
+  })
   it('deletes only the confirmed child before releasing plugin references', async () => {
     const fetch = vi.fn().mockResolvedValueOnce(ok({ accepted: true })).mockResolvedValueOnce(ok({ sessionId: 'child', token: 'nonce' })).mockResolvedValueOnce(ok({ sessionIds: ['child'] })).mockResolvedValueOnce(ok({ accepted: true }))
     vi.stubGlobal('fetch', fetch)

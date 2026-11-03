@@ -12,16 +12,33 @@ function fixture(events: { seq: number }[] = [{ seq: 0 }, { seq: 1 }, { seq: 2 }
   const clear = vi.fn()
   const set = vi.fn()
   const disarm = vi.fn()
+  let childDeleted = false
+  const owned = new Set<string>()
+  const ownership = { list: async () => ({ childIds: [...owned], abandonedIds: [] }), add: async (id: string) => { owned.add(id) }, remove: async (id: string) => { owned.delete(id) } }
   const services = {
     sessionController: { fork, create, cancel, prompt },
     agents: { get: vi.fn((id: string) => id === 'child' ? { inbox: { clear }, status: 'idle' } : undefined) },
     permissionPresets: { current: vi.fn().mockReturnValue('workspace-write'), set },
     goals: { disarm },
+    sessionPersistence: { stat: vi.fn().mockResolvedValue(undefined) },
   }
-  const ctx = { sessions: { get: (id: string) => id === 'parent' ? parent : id === 'child' ? child : undefined }, get: (key: string) => services[key as keyof typeof services] } as unknown as Context
-  return { api: buildNativeSidechatApi(ctx), fork, create, prompt, cancel, clear, set, disarm, parent, child, services, ctx }
+  const ctx = { sessions: { get: (id: string) => id === 'parent' ? parent : id === 'child' && !childDeleted ? child : undefined }, get: (key: string) => services[key as keyof typeof services] } as unknown as Context
+  return { api: buildNativeSidechatApi(ctx, ownership), fork, create, prompt, cancel, clear, set, disarm, parent, child, services, ctx, deleteChild: () => { childDeleted = true } }
 }
 describe('native temporary forks', () => {
+  it('honors the deletion owner receipt instead of reading an identity guarded against resurrection', async () => {
+    const h = fixture(), key = Symbol.for('dsh-delete-session.bridge.v1')
+    const globals = globalThis as Record<symbol, unknown>, previous = globals[key]
+    await h.api['sidechat.start']({ sessionId: 'parent' })
+    globals[key] = { deleted: new Set(['child']), blocked: new Set() }
+    try {
+      const get = vi.spyOn(h.ctx.sessions, 'get').mockImplementation(() => { throw new Error('Deleted identity is guarded') })
+      expect(await h.api['sidechat.cancel']({ childId: 'child' })).toEqual({ accepted: true, alreadyDeleted: true })
+      await h.api['sidechat.dispose']({ childId: 'child' })
+      expect(get).not.toHaveBeenCalled()
+      expect((await h.api['sidechat.temporary']({})).childIds).toEqual([])
+    } finally { if (previous === undefined) delete globals[key]; else globals[key] = previous }
+  })
   it('delegates the exact source prefix to DSH and never injects a model-facing boundary or starts an extra request', async () => {
     const h = fixture()
     const before = h.parent.snapshotEvents()
@@ -55,8 +72,20 @@ describe('native temporary forks', () => {
     await h.api['sidechat.cancel']({ childId: 'child' })
     expect(h.cancel).toHaveBeenCalledExactlyOnceWith({ sessionId: 'child' })
     expect(h.disarm).toHaveBeenCalledOnce()
+    await expect(h.api['sidechat.dispose']({ childId: 'child' })).rejects.toThrow('not been permanently deleted')
+    h.deleteChild()
     await h.api['sidechat.dispose']({ childId: 'child' })
     await expect(h.api['sidechat.cancel']({ childId: 'child' })).rejects.toThrow('Only a temporary session')
+  })
+  it('retains temporary ownership until persisted files have actually been deleted', async () => {
+    const h = fixture()
+    await h.api['sidechat.start']({ sessionId: 'parent' })
+    h.deleteChild()
+    h.services.sessionPersistence.stat.mockResolvedValueOnce({ header: {} })
+    await expect(h.api['sidechat.dispose']({ childId: 'child' })).rejects.toThrow('not been permanently deleted')
+    expect((await h.api['sidechat.temporary']({})).childIds).toEqual(['child'])
+    await h.api['sidechat.dispose']({ childId: 'child' })
+    expect((await h.api['sidechat.temporary']({})).childIds).toEqual([])
   })
   it('fails explicitly when the required native fork owner is unavailable', async () => {
     const api = buildNativeSidechatApi({ sessions: { get: () => undefined }, get: () => undefined } as unknown as Context)

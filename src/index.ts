@@ -4,7 +4,7 @@ import { buildNativeSidechatApi } from './native-sidechat.ts'
 import { readJsonBody, SidebarError, writeError, writeJson, writeOk } from './wire.ts'
 
 export const name = 'dsh-side-chat'
-export const inject = ['webServer', 'sessions', 'connection']
+export const inject = ['webServer', 'sessions', 'sessionPersistence', 'connection']
 
 export function apply(ctx: Context): void {
   const api = buildNativeSidechatApi(ctx)

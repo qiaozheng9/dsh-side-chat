@@ -40,8 +40,9 @@
 | **原生附件与引用** | 沿用主对话的文件、图片和 `@` 引用能力，为当前副本添加参考材料。 |
 | **目标与计划** | 创建、编辑、暂停或继续目标；进入计划模式，在侧边审核模型提交的计划。 |
 | **多标签对话** | 同时保留多个侧边讨论，分别处理不同问题。 |
+| **临时会话不占列表** | 侧边临时对话不进入左侧会话列表，也不会出现在列表搜索结果中。 |
 | **时间、用量与导出** | 查看原生消息时间、token 用量和执行过程，使用原生压缩与日志下载。 |
-| **关闭后清理** | 关闭前确认，确认后永久删除该临时对话。需要保留内容时，先下载日志。 |
+| **关闭后清理** | 确认后清理会话文件、索引、缓存、草稿和独占附件；引用的项目文件和共享数据会保留。 |
 
 ### 熟悉的 DSH 操作
 
@@ -80,7 +81,7 @@
 在 PowerShell 中执行：
 
 ```powershell
-dsh plugin --profile desktop add https://github.com/qiaozheng9/dsh-side-chat/releases/download/v0.2.1/dsh-side-chat-0.2.1.tgz
+dsh plugin --profile desktop add https://github.com/qiaozheng9/dsh-side-chat/releases/download/v0.2.2/dsh-side-chat-0.2.2.tgz
 ```
 
 **重启 DSH，然后在主对话输入 `/side`。** 发行包已预构建，安装本插件无需在本机编译。
@@ -115,6 +116,8 @@ dsh plugin --profile desktop add https://github.com/qiaozheng9/dsh-side-chat/rel
 ### 3. 保留结果，再关闭
 
 需要留存时，先点击 **＋ → 下载日志**。关闭侧边对话时，选择 **「删除并关闭」** 会停止相关侧边活动并清理该对话的数据；选择取消则继续保留。
+
+临时对话不会加入左侧列表。窗口刷新或 DSH 重启后，插件会通过已登记的临时身份回收遗留副本，避免留下找不到入口的会话。
 
 ## 常见问题
 

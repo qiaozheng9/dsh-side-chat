@@ -25,6 +25,8 @@ Your main chat is implementing a feature, but you want to understand a design ch
 
 Each side chat has its own messages, model and permissions. Attach reference files, discuss a plan, or keep several side conversations open at once.
 
+Temporary side chats stay out of the left conversation list and its search results. Confirmed close removes their session files, indexes, caches, drafts and exclusive attachments. Referenced project files and shared data remain intact. Registered abandoned copies are reclaimed after a window reload or DSH restart.
+
 **A clean transcript with the context preserved.** Side chats display only messages added after opening, while the model retains the main chat's context at that point. Timestamps, token usage, streaming, the composer and command menus continue to use DSH's native components.
 
 ## Features
@@ -74,7 +76,7 @@ The transcript and composer use the actual native components. The **＋** menu f
 Run in PowerShell:
 
 ```powershell
-dsh plugin --profile desktop add https://github.com/qiaozheng9/dsh-side-chat/releases/download/v0.2.1/dsh-side-chat-0.2.1.tgz
+dsh plugin --profile desktop add https://github.com/qiaozheng9/dsh-side-chat/releases/download/v0.2.2/dsh-side-chat-0.2.2.tgz
 ```
 
 **Restart DSH, then enter `/side` in the main chat.** This is a prebuilt package; installing it requires no local compilation.
