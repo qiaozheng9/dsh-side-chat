@@ -17,7 +17,7 @@ pnpm pack
 安装自行构建的包：
 
 ```powershell
-$pluginPath = (Resolve-Path './dsh-side-chat-0.1.11.tgz').Path.Replace('\', '/')
+$pluginPath = (Resolve-Path './dsh-side-chat-0.1.12.tgz').Path.Replace('\', '/')
 dsh plugin --profile desktop add "file:$pluginPath"
 ```
 

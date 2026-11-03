@@ -74,7 +74,7 @@
 在 PowerShell 中执行：
 
 ```powershell
-dsh plugin --profile desktop add https://github.com/qiaozheng9/dsh-side-chat/releases/download/v0.1.11/dsh-side-chat-0.1.11.tgz
+dsh plugin --profile desktop add https://github.com/qiaozheng9/dsh-side-chat/releases/download/v0.1.12/dsh-side-chat-0.1.12.tgz
 ```
 
 **重启 DSH，然后在主对话输入 `/side`。** 发行包已预构建，安装本插件无需在本机编译。

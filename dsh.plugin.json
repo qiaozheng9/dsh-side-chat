@@ -1,6 +1,6 @@
 {
   "id": "dsh-external/dsh-side-chat",
-  "version": "0.1.11",
+  "version": "0.1.12",
   "main": "./lib/index.js",
   "description": "独立的 /side 侧边对话插件",
   "engines": {

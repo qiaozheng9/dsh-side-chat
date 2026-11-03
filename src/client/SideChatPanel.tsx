@@ -1,46 +1,22 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
-import { IconSendOutlineRegular, IconStopFillRegular, MarkdownText, IconGoalOutlineRegular, IconPlanOutlineRegular } from '@deepseek-ai/dsh-client-ui-primitives'
+import { IconSendOutlineRegular, IconStopFillRegular, IconGoalOutlineRegular, IconPlanOutlineRegular, StateDot, TextShimmer } from '@deepseek-ai/dsh-client-ui-primitives'
 import { CloseDialog } from './CloseDialog.tsx'
 import { GoalDialog } from './GoalDialog.tsx'
 import { QuestionPanel } from './QuestionPanel.tsx'
 import type { SidechatTaskState } from '../sidechat-core.ts'
 import type { Context, SidebarHistoryEntry, SidebarSessionEvent } from '../context-types.ts'
 import type { SidechatLogEvent, SidechatPendingInput, SidechatThreadInfo, SidechatModelSelection } from '../sidechat-core.ts'
-import { markdownTextProps } from './markdown-labels.tsx'
-import { transcriptRows, toolArgsSummary, type SidechatTranscriptRow } from './sidechat-transcript.ts'
+import { transcriptRows, type SidechatTranscriptRow } from './sidechat-transcript.ts'
+import { SideChatTranscript, responseActivity } from './SideChatTranscript.tsx'
 import { useSidechatPush } from './use-sidechat-push.ts'
 import { sideApi } from './api.ts'
 import { ModelPicker } from './ModelPicker.tsx'
 import { PermissionPicker } from './PermissionPicker.tsx'
 import { ApprovalPanel } from './ApprovalPanel.tsx'
 import { AttachmentActions, encodeAttachments, type DraftAttachment, type SideMenuAction } from './AttachmentActions.tsx'
-import { sideCopy, type SideCopy } from './locales.ts'
+import { sideCopy } from './locales.ts'
 import type { SideThread, SideThreads } from './store.ts'
 import css from './SideChatPanel.module.css'
-
-function Message({ row, copy }: { row: SidechatTranscriptRow; copy: SideCopy }): React.ReactNode {
-  const [copied, setCopied] = useState(false)
-  const labels = { copyLabel: copy.copy, copiedLabel: copy.copied, codeLabel: copy.code, wrapLabel: copy.wrap, unwrapLabel: copy.unwrap }
-  if (row.kind === 'injection' || row.kind === 'turnSummary') return null
-  if (row.kind === 'reasoning') return <details className={css.disclosure}><summary>{copy.thinking}</summary><div>{row.text}</div></details>
-  if (row.kind === 'tool') return (
-    <details className={css.disclosure}>
-      <summary>{row.name} {row.args === undefined ? '' : toolArgsSummary(row.args)}</summary>
-      <pre>{row.resultText ?? row.args}</pre>
-    </details>
-  )
-  if (row.kind === 'deliverables') return <div className={css.disclosure}>{row.files.map(file => <div key={file.path}>{file.path}</div>)}</div>
-  if (row.kind === 'error') return <div role="alert" className={css.error}>{row.text}</div>
-  if (row.kind === 'user') return <div className={css.user}><MarkdownText {...markdownTextProps(row.text, labels)} /></div>
-  return (
-    <div className={css.assistant}>
-      <MarkdownText {...markdownTextProps(row.text, labels)} />
-      {row.settled && <button type="button" className={css.copy} aria-label={copy.copy} onClick={() => {
-        void navigator.clipboard.writeText(row.text).then(() => { setCopied(true) }).catch(() => {})
-      }}>{copied ? copy.copied : copy.copy}</button>}
-    </div>
-  )
-}
 
 /** One controller record per native tab; hidden bodies hold no timers or sockets. */
 export function SideChatPanel({ ctx, threads, record, visible, onNew, onClose }: {
@@ -106,7 +82,9 @@ export function SideChatPanel({ ctx, threads, record, visible, onNew, onClose }:
         const known = new Set(nextRows.flatMap(row => row.kind === 'user' && row.messageId !== undefined ? [row.messageId] : []))
         setPending(feed.pending.filter(item => !known.has(item.id)))
         setEcho(current => current !== undefined && (feed.pending.some(item => item.text === current) || nextRows.some(row => row.kind === 'user' && row.text === current)) ? undefined : current)
-        setRunning(info.status === 'running' || feed.live.length > 0 || feed.pending.length > 0)
+        // The host owns activity. Queued input and stale stream snapshots
+        // must not keep a completed response in the thinking state.
+        setRunning(info.status === 'running')
         setInfo(info)
         setTask(task)
         setError(undefined)
@@ -239,12 +217,12 @@ export function SideChatPanel({ ctx, threads, record, visible, onNew, onClose }:
             <h2>{copy.empty}</h2><p>{copy.hint}</p>
           </div>
         )}
-        {rows.map((row, index) => <Message key={`${row.kind}:${row.seq}:${'contentBlockIndex' in row ? row.contentBlockIndex : index}`} row={row} copy={copy} />)}
+        <SideChatTranscript rows={rows} running={running} copy={copy} />
         {pending.map(item => <div className={css.user} key={item.id}>{item.text}<div className={css.pending}>{copy.queue}<button type="button" className={css.icon} aria-label={copy.removeQueued} onClick={() => {
           if (childId !== undefined) void sideApi.dequeue(childId, item.id).then(refresh).catch(reason => { setError(String(reason)) })
         }}>×</button></div></div>)}
         {echo !== undefined && <div className={css.user}>{echo}<div className={css.pending}>{copy.queue}</div></div>}
-        {running && <div className={css.thinking} role="status"><span className={css.dot} />{info?.approvals?.length ? copy.waitingApproval : copy.thinking}</div>}
+        {running && <div className={css.thinking} role="status"><StateDot state="ongoing" /><TextShimmer active>{copy[responseActivity(rows, Boolean(info?.approvals?.length), Boolean(info?.questions?.length))]}</TextShimmer></div>}
       </div>
       {(notice !== undefined || actionBusy !== undefined) && <div className={css.notice} role="status">{actionBusy === 'compact' ? copy.compacting : actionBusy === 'export' ? copy.exporting : actionBusy === 'plan' ? copy.planOn : notice}</div>}
       {(error ?? record.error) !== undefined && <div className={css.error} role="alert">{error ?? record.error}<button type="button" className={css.retry} onClick={() => {

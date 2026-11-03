@@ -58,6 +58,7 @@ import {
   resolvePresetId,
   SIDE_BOUNDARY_PREFIX,
   SIDE_BOUNDARY_PROMPT,
+  SIDE_RESPONSE_STYLE,
   SIDE_INJECTION_SOURCE_KIND,
   SIDE_NEW_THREAD_TITLE,
   sideLabel,
@@ -871,6 +872,17 @@ export function buildSidechatApi(ctx: Context, live?: AssistantLiveBuffer, inval
       const blocks = await promptBlocks(ctx, text, files)
       if (boundaryDelivered(agent.session.snapshotEvents() as unknown as readonly SidechatLogEvent[])
         || boundaryPending(agent)) {
+        // Upgrade an already-open temporary chat without replaying the
+        // boundary (which would deactivate this chat's own earlier requests).
+        const messages = threadOwnLogEvents(agent.session.snapshotEvents() as unknown as readonly SidechatLogEvent[])
+          .filter(event => event.type === 'user/message').map(event => event.data)
+        try { messages.push(...agent.inbox.nextStep, ...agent.inbox.nextTurn) } catch { /* durable messages still suffice */ }
+        const context = messages.filter(message => (message as { source?: { kind?: string } })?.source?.kind === SIDE_INJECTION_SOURCE_KIND
+          || messageLeadTextOf(message).startsWith(SIDE_BOUNDARY_PREFIX)).map(messageLeadTextOf)
+        if (context.some(text => text.includes('Mode: this is a continuable side conversation.'))
+          && !context.some(text => text.includes(SIDE_RESPONSE_STYLE))) {
+          agent.inject(createUserMessage({ content: textPrompt(SIDE_RESPONSE_STYLE), source: { kind: SIDE_INJECTION_SOURCE_KIND } }))
+        }
         admitFollowup(agent, blocks)
       } else {
         // First message of an immediately-created thread: it carries the

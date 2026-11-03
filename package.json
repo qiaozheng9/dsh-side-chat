@@ -1,6 +1,6 @@
 {
   "name": "dsh-side-chat",
-  "version": "0.1.11",
+  "version": "0.1.12",
   "description": "Standalone Codex-style /side conversations for DSH",
   "type": "module",
   "license": "MIT",

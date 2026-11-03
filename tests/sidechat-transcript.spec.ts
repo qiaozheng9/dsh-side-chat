@@ -8,7 +8,7 @@
 import { describe, expect, it } from 'vitest'
 import { createToolResultMessage, ToolCallId } from '@deepseek-ai/dsh-llm'
 import type { SidebarHistoryEntry, SidebarSessionEvent } from '../src/context-types.ts'
-import { SIDE_BOUNDARY_PREFIX, SIDE_BOUNDARY_PROMPT, SIDE_INJECTION_SOURCE_KIND } from '../src/sidechat-core.ts'
+import { SIDE_BOUNDARY_PREFIX, SIDE_BOUNDARY_PROMPT, SIDE_LEGACY_BOUNDARY_PROMPT, SIDE_INJECTION_SOURCE_KIND } from '../src/sidechat-core.ts'
 import {
   formatDurationMs,
   formatTokens,
@@ -318,6 +318,12 @@ describe('user row identity', () => {
 })
 
 describe('turnSummary rows', () => {
+  it('retains user questions from historical combined prompts after the prompt update', () => {
+    const rows = transcriptRows([entry(ev('user/message', 1, {
+      content: textBlocks(`${SIDE_LEGACY_BOUNDARY_PROMPT}\n\nmy original question`), source: { kind: 'user' },
+    }))])
+    expect(rows).toEqual([{ kind: 'injection', seq: 1, text: SIDE_LEGACY_BOUNDARY_PROMPT }, { kind: 'user', seq: 1, text: 'my original question' }])
+  })
   it('emits one tail row per turn: envelope-time duration + last-input/summed-output usage', () => {
     const entries = [
       entry(ev('session/end-seed', 0)),
@@ -336,7 +342,7 @@ describe('turnSummary rows', () => {
       entry(ev('turn/start', 2, { turn: 1 })),
       entry(ev('turn/end', 7, { turn: 1, reason: 'cancelled' })),
     ]
-    expect(transcriptRows(cancelled).at(-1)).toEqual({ kind: 'turnSummary', seq: 7, durationMs: 5000 })
+    expect(transcriptRows(cancelled).at(-1)).toEqual({ kind: 'turnSummary', seq: 7, durationMs: 5000, outcome: 'stopped' })
 
     const seedCutStart = [
       entry(ev('session/end-seed', 0)),
@@ -346,12 +352,12 @@ describe('turnSummary rows', () => {
     expect(transcriptRows(seedCutStart).at(-1)).toEqual({ kind: 'turnSummary', seq: 3, inputTokens: 10, outputTokens: 5 })
   })
 
-  it('skips the tail entirely when nothing is computable', () => {
+  it('retains completion even when duration and usage are unavailable', () => {
     const entries = [
       entry(ev('session/end-seed', 0)),
       entry(ev('turn/end', 1, { turn: 1, reason: 'completed' })),
     ]
-    expect(transcriptRows(entries)).toEqual([])
+    expect(transcriptRows(entries)).toEqual([{ kind: 'turnSummary', seq: 1 }])
   })
 })
 

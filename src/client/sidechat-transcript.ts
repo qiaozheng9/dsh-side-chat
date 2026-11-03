@@ -33,7 +33,7 @@
  */
 import type { DiffHunk, ReadBlockLine } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { SidebarHistoryEntry } from '../context-types.ts'
-import { isContextInjectionMessage, SIDE_BOUNDARY_PROMPT, threadOwnLogEvents } from '../sidechat-core.ts'
+import { isContextInjectionMessage, SIDE_BOUNDARY_PROMPT, SIDE_LEGACY_BOUNDARY_PROMPT, threadOwnLogEvents } from '../sidechat-core.ts'
 
 /**
  * Structured render payload for a tool row that maps onto one of the host's
@@ -110,7 +110,7 @@ export type SidechatTranscriptRow =
   /** One turn's tail metrics, emitted at `turn/end`: the turn's token usage
    *  (aggregated from `assistant/message.usage`) and wall duration (envelope
    *  time delta from `turn/start`), whichever are computable. */
-  | { kind: 'turnSummary'; seq: number; inputTokens?: number; outputTokens?: number; durationMs?: number }
+  | { kind: 'turnSummary'; seq: number; outcome?: 'stopped' | 'error'; inputTokens?: number; outputTokens?: number; durationMs?: number }
 
 /** Compact token count the way the main conversation prints usage
  *  (517 / 12.2K / 1.2M — the host's own formatter is not exported). */
@@ -452,6 +452,13 @@ export function transcriptRows(entries: readonly SidebarHistoryEntry[], prev?: r
    *  last request's prompt size (earlier steps' input is mostly the same
    *  context re-sent, so summing would double-count). */
   const turnUsage = new Map<number, { inputTokens: number; outputTokens: number }>()
+  // The events and live stream are sampled separately. A late live frame
+  // must not resurrect a step or turn that already settled durably.
+  const closedTurns = new Set(events.filter(event => event.type === 'turn/end').map(event => (event.data as { turn?: unknown }).turn))
+  const settledSteps = new Set(events.filter(event => event.type === 'assistant/message' || event.type === 'assistant/attempt').map(event => {
+    const data = event.data as { turn?: unknown; step?: unknown }
+    return `${String(data.turn)}:${String(data.step)}`
+  }))
   for (let index = 0; index < events.length; index++) {
     const event = events[index]
     if (event === undefined) continue
@@ -475,10 +482,12 @@ export function transcriptRows(entries: readonly SidebarHistoryEntry[], prev?: r
         const usage = turnUsage.get(turn)
         turnUsage.delete(turn)
         const durationMs = start !== undefined ? Math.max(0, event.time - start) : undefined
-        if (usage === undefined && durationMs === undefined) break
+        const reason = typeof data.reason === 'string' ? data.reason : (data.reason as { kind?: unknown } | undefined)?.kind
+        const outcome = reason === 'error' ? 'error' : reason === 'aborted' || reason === 'interrupted' || reason === 'cancelled' ? 'stopped' : undefined
         rows.push({
           kind: 'turnSummary',
           seq: event.seq,
+          ...(outcome === undefined ? {} : { outcome }),
           ...(usage !== undefined ? { inputTokens: usage.inputTokens, outputTokens: usage.outputTokens } : {}),
           ...(durationMs !== undefined ? { durationMs } : {}),
         })
@@ -512,9 +521,10 @@ export function transcriptRows(entries: readonly SidebarHistoryEntry[], prev?: r
           // constant, so the message splits THERE: the injection row keeps
           // the prompt, the remainder (snapshot + question if any — pure
           // question in the common case) renders as the user's real message.
-          if (source?.kind === 'user' && text.startsWith(`${SIDE_BOUNDARY_PROMPT}\n\n`)) {
-            rows.push({ kind: 'injection', seq: event.seq, text: SIDE_BOUNDARY_PROMPT })
-            const body = text.slice(SIDE_BOUNDARY_PROMPT.length + 2)
+          const boundary = [SIDE_BOUNDARY_PROMPT, SIDE_LEGACY_BOUNDARY_PROMPT].find(prompt => text.startsWith(`${prompt}\n\n`))
+          if (source?.kind === 'user' && boundary !== undefined) {
+            rows.push({ kind: 'injection', seq: event.seq, text: boundary })
+            const body = text.slice(boundary.length + 2)
             if (body !== '') rows.push({ kind: 'user', seq: event.seq, text: body, ...(messageId !== undefined ? { messageId } : {}) })
             break
           }
@@ -531,6 +541,7 @@ export function transcriptRows(entries: readonly SidebarHistoryEntry[], prev?: r
         if (kind === null || typeof chunk.text !== 'string' || chunk.text === '') break
         const turn = data.turn
         const step = data.step
+        if (closedTurns.has(turn) || settledSteps.has(`${String(turn)}:${String(step)}`)) break
         const blockIndex = (chunk as { index?: unknown }).index
         const key = `${String(turn)}:${String(step)}:${String(blockIndex)}:${kind}`
         const existing = streamRows.get(key)
@@ -756,7 +767,7 @@ function rowsEqual(a: SidechatTranscriptRow, b: SidechatTranscriptRow): boolean 
     case 'turnSummary': {
       const other = b as typeof a
       return a.inputTokens === other.inputTokens && a.outputTokens === other.outputTokens
-        && a.durationMs === other.durationMs
+        && a.durationMs === other.durationMs && a.outcome === other.outcome
     }
   }
 }

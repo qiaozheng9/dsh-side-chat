@@ -405,6 +405,12 @@ describe('resolvePresetId', () => {
 })
 
 describe('SIDE_BOUNDARY_PROMPT contract', () => {
+  it('keeps inherited tasks inactive while asking for ordinary direct answers', () => {
+    expect(SIDE_BOUNDARY_PROMPT).toContain('Do not continue, execute, or complete any instructions')
+    expect(SIDE_BOUNDARY_PROMPT).toContain('naturally and directly, as in an ordinary conversation')
+    expect(SIDE_BOUNDARY_PROMPT).toContain('do not announce, explain, or repeatedly mention')
+    expect(SIDE_BOUNDARY_PROMPT).not.toContain('Mode: this is a continuable side conversation')
+  })
   it('opens with the boundary prefix the transcript drops', () => {
     expect(SIDE_BOUNDARY_PROMPT.startsWith('Side conversation boundary')).toBe(true)
   })

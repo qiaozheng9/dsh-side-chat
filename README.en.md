@@ -68,7 +68,7 @@ The composer, model picker and permission controls follow DSH's native interface
 Run in PowerShell:
 
 ```powershell
-dsh plugin --profile desktop add https://github.com/qiaozheng9/dsh-side-chat/releases/download/v0.1.11/dsh-side-chat-0.1.11.tgz
+dsh plugin --profile desktop add https://github.com/qiaozheng9/dsh-side-chat/releases/download/v0.1.12/dsh-side-chat-0.1.12.tgz
 ```
 
 **Restart DSH, then enter `/side` in the main chat.** This is a prebuilt package; installing it requires no local compilation.

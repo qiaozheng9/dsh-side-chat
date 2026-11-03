@@ -15,7 +15,7 @@ import type { SessionEvent, SessionHeader, SessionId } from '@deepseek-ai/dsh-se
 import { SUBAGENT_DESCRIPTOR_VERSION } from '@deepseek-ai/dsh-subagent'
 import { buildSidechatApi } from '../src/sidechat-routes.ts'
 import { SidebarError } from '../src/wire.ts'
-import { buildSidechatInheritance, SIDE_BOUNDARY_PROMPT, SIDE_INJECTION_SOURCE_KIND, SIDE_NEW_THREAD_TITLE, sideLabel } from '../src/sidechat-core.ts'
+import { buildSidechatInheritance, SIDE_BOUNDARY_PROMPT, SIDE_RESPONSE_STYLE, SIDE_INJECTION_SOURCE_KIND, SIDE_NEW_THREAD_TITLE, sideLabel } from '../src/sidechat-core.ts'
 import type { Context } from '../src/context-types.ts'
 
 /** A fake live agent (inject/followup/cancel/inbox spied). */
@@ -560,6 +560,21 @@ describe('sidechat.start', () => {
 })
 
 describe('sidechat.prompt', () => {
+  it('silently updates old chat guidance once without repeating its boundary or changing user input', async () => {
+    const messages = [ev('user/message', 0, {
+      content: [{ type: 'text', text: 'Side conversation boundary.\n\nMode: this is a continuable side conversation.' }],
+      source: { kind: SIDE_INJECTION_SOURCE_KIND },
+    })]
+    const child = agent('child', { events: messages })
+    const api = buildSidechatApi(ctxWith(happyServices(undefined, child)))
+    await api['sidechat.prompt']({ childId: 'child', text: 'why is the sky blue?' })
+    expect(child.inject).toHaveBeenCalledTimes(1)
+    expect(child.inject.mock.calls[0]![0]).toMatchObject({ content: [{ type: 'text', text: SIDE_RESPONSE_STYLE }], source: { kind: SIDE_INJECTION_SOURCE_KIND } })
+    expect(child.followup.mock.calls[0]![0]).toMatchObject({ content: [{ type: 'text', text: 'why is the sky blue?' }] })
+    messages.push(ev('user/message', 1, { content: [{ type: 'text', text: SIDE_RESPONSE_STYLE }], source: { kind: SIDE_INJECTION_SOURCE_KIND } }))
+    await api['sidechat.prompt']({ childId: 'child', text: 'and clouds?' })
+    expect(child.inject).toHaveBeenCalledTimes(1)
+  })
   it('delivers follow-ups to a live agent (boundary already delivered)', async () => {
     const child = agent('child', {
       events: [

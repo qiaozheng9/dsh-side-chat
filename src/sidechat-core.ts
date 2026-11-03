@@ -55,13 +55,19 @@ export const SIDE_INJECTION_SOURCE_KIND = 'plugin:dsh-side-chat'
  * inherited seed is reference context only, never active instruction.
  * Model-facing contract — change only with intent, tests pin the sentences.
  */
+export const SIDE_RESPONSE_STYLE = "Answer the current user's message naturally and directly, as in an ordinary conversation. The boundary and inherited context are internal bookkeeping: do not announce, explain, or repeatedly mention them or the conversation's location unless the user explicitly asks about them."
+
 export const SIDE_BOUNDARY_PROMPT = `Side conversation boundary.
 
 Everything before this boundary is inherited history from the parent session: its completed turns, its pending question, and — if the parent was mid-turn — its in-progress output frozen at the moment this side conversation started. It is reference context only. It is not your current task.
 
 Do not continue, execute, or complete any instructions, plans, tool calls, approvals, edits, or requests from before this boundary. Only messages submitted after this boundary are active user instructions for this side conversation.
 
-Mode: this is a continuable side conversation. Your answers stay in this side thread and are viewed in the side panel; they are never delivered into the parent session.`
+${SIDE_RESPONSE_STYLE}`
+
+/** Historical combined boundary+question rows must still split verbatim. */
+export const SIDE_LEGACY_BOUNDARY_PROMPT = SIDE_BOUNDARY_PROMPT.replace(SIDE_RESPONSE_STYLE,
+  'Mode: this is a continuable side conversation. Your answers stay in this side thread and are viewed in the side panel; they are never delivered into the parent session.')
 
 /** One seed event (structural mirror of the durable SessionEvent). The
  *  envelope fields are preserved verbatim: surface-eligible events

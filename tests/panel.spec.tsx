@@ -11,7 +11,10 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => ({
   MarkdownText: ({ text }: { text: string }) => createElement('p', null, text),
   IconSendOutlineRegular: () => createElement('span', null, '↑'),
   IconStopFillRegular: () => createElement('span', null, '■'),
-  ...Object.fromEntries(['IconPaperclipOutlineRegular', 'IconFolderCloseRegular', 'IconGoalOutlineRegular', 'IconPlanOutlineRegular', 'IconCompactOutlineRegular', 'IconDatabaseOutlineRegular', 'PermissionIconFullAccessRegular', 'IconDownloadOutlineRegular', 'IconTrashOutlineRegular'].map(name => [name, () => createElement('svg')])),
+  StateDot: () => createElement('span'),
+  TextShimmer: ({ children }: { children: React.ReactNode }) => createElement('span', null, children),
+  DisclosureRow: ({ title, open, onToggle, children }: { title: string; open: boolean; onToggle(): void; children: React.ReactNode }) => createElement('div', null, createElement('button', { onClick: onToggle, 'aria-expanded': open }, title), open && children),
+  ...Object.fromEntries(['IconThinkOutlineRegular', 'IconChevronDownOutlineRegular', 'IconPaperclipOutlineRegular', 'IconFolderCloseRegular', 'IconGoalOutlineRegular', 'IconPlanOutlineRegular', 'IconCompactOutlineRegular', 'IconDatabaseOutlineRegular', 'PermissionIconFullAccessRegular', 'IconDownloadOutlineRegular', 'IconTrashOutlineRegular'].map(name => [name, () => createElement('svg')])),
   Modal: ({ open, children, title, footer }: { open: boolean; children: React.ReactNode; title: string; footer?: React.ReactNode }) => open ? createElement('div', { role: 'dialog', 'aria-label': title }, children, footer) : null,
   Button: ({ children, variant: _variant, size: _size, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: string; size?: string }) => createElement('button', props, children),
   Menu: ({ anchor }: { anchor: React.ReactNode }) => anchor,
@@ -61,6 +64,52 @@ function type(text: string): HTMLTextAreaElement {
   return textarea
 }
 describe('side chat composer and lifecycle', () => {
+  it('finishes the reasoning disclosure and shows native completion above the final answer despite stale live frames and queued input', async () => {
+    vi.mocked(sideApi.events).mockResolvedValue({
+      events: [
+        { type: 'turn/start', seq: 1, time: 1000, data: { turn: 1 } },
+        { type: 'assistant/message', seq: 2, time: 2500, data: { turn: 1, step: 1, message: { content: [{ type: 'reasoning', text: 'private calculation' }, { type: 'text', text: 'The answer is 42.' }] } } },
+        { type: 'turn/end', seq: 3, time: 3000, data: { turn: 1, reason: { kind: 'completed' } } },
+      ],
+      live: [{ type: 'assistant/live-chunk', seq: 4, time: 2600, data: { attemptId: 'old', turn: 1, step: 1, index: 0, chunk: { type: 'reasoning-delta', text: 'stale' } } }],
+      pending: [{ id: 'queued', text: 'next question', target: 'next-turn' }],
+    })
+    await mount()
+    expect(root!.container.querySelector('[role="log"]')?.getAttribute('aria-busy')).toBe('false')
+    expect(root!.container.querySelector('[aria-label="Stop response"]')).toBeNull()
+    expect(root!.container.querySelector('[data-side-reasoning-state="done"]')?.textContent).toContain('Analysis complete')
+    expect(root!.container.textContent).not.toContain('Thinking')
+    expect(root!.container.textContent).not.toContain('stale')
+    const header = root!.container.querySelector<HTMLButtonElement>('[data-side-turn-state="completed"]')!
+    expect(header.textContent).toBe('Completed in 2s')
+    expect(root!.container.textContent!.indexOf('Completed in')).toBeLessThan(root!.container.textContent!.indexOf('The answer is 42.'))
+    act(() => { header.click() })
+    expect(root!.container.querySelector('[data-side-reasoning-state]')).toBeNull()
+    expect(root!.container.textContent).toContain('The answer is 42.')
+    act(() => { header.click() })
+    act(() => { root!.container.querySelector<HTMLButtonElement>('[data-side-reasoning-state] button')!.click() })
+    expect(root!.container.textContent).toContain('private calculation')
+  })
+  it('changes the live label from analysis to replying without leaving the reasoning row active', async () => {
+    vi.mocked(sideApi.info).mockResolvedValue({ live: true, status: 'running' })
+    vi.mocked(sideApi.events).mockResolvedValue({ events: [], pending: [], live: [
+      { type: 'assistant/live-chunk', seq: 1, time: 1, data: { attemptId: 'a', turn: 1, step: 1, index: 0, chunk: { type: 'reasoning-delta', index: 0, text: 'calculation' } } },
+      { type: 'assistant/live-chunk', seq: 2, time: 2, data: { attemptId: 'a', turn: 1, step: 1, index: 1, chunk: { type: 'text-delta', index: 1, text: '42' } } },
+    ] })
+    await mount()
+    expect(root!.container.querySelector('[data-side-reasoning-state="done"]')).not.toBeNull()
+    expect(root!.container.querySelector('[role="status"]')?.textContent).toContain('Writing a response')
+    expect(root!.container.querySelector('[aria-label="Stop response"]')).not.toBeNull()
+  })
+  it.each([['aborted', 'stopped', 'Stopped'], ['error', 'error', 'Failed']])('renders %s turns truthfully instead of completed', async (reason, state, label) => {
+    vi.mocked(sideApi.events).mockResolvedValue({ live: [], pending: [], events: [
+      { type: 'turn/start', seq: 1, time: 1000, data: { turn: 1 } },
+      { type: 'turn/end', seq: 2, time: 3000, data: { turn: 1, reason: { kind: reason } } },
+    ] })
+    await mount()
+    expect(root!.container.querySelector(`[data-side-turn-state="${state}"]`)?.textContent).toBe(label)
+    expect(root!.container.querySelector('[data-side-turn-state="completed"]')).toBeNull()
+  })
   it('confirms before discarding an unsent draft', async () => {
     const { onClose } = await mount()
     type('keep my draft')
