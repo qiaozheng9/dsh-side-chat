@@ -18,6 +18,43 @@ let root: RenderedRoot | undefined
 afterEach(() => { root?.unmount(); root = undefined; vi.clearAllMocks() })
 
 describe('native conversation embedding', () => {
+  it.each([false, true])('unmounts and releases the native reference before deletion, restoring it only on genuine failure: %s', async fail => {
+    let released = false
+    const release = vi.fn(() => { released = true })
+    const binding = { ctx: {} }
+    const retained = { ready: Promise.resolve(), release, get binding() { if (released) throw new Error('Session reference is released'); return binding } }
+    const fresh = { ready: Promise.resolve(), release: vi.fn(), binding }
+    const retain = vi.fn().mockReturnValueOnce(retained).mockReturnValue(fresh)
+    const locale = { active: 'en' }
+    const ctx = { get: () => ({ refresh: async () => {}, retain }), locale: { getSnapshot: () => locale, subscribe: () => () => {} } } as unknown as Context
+    const record: SideThread = { id: 'tab', parentId: 'parent', childId: 'child', index: 1, question: '', closed: false }
+    let finish!: () => void
+    const gate = new Promise<void>(resolve => { finish = resolve })
+    const close = vi.fn(async () => {
+      expect(root!.container.querySelector('[data-child-scope]')).toBeNull()
+      expect(release).toHaveBeenCalledOnce()
+      await gate
+      if (fail) { record.error = 'Storage is busy'; throw new Error(record.error) }
+      record.closed = true
+    })
+    const threads = { subscribe: () => () => {}, version: () => 0, close, markConversation: vi.fn() } as unknown as SideThreads
+    const onClose = vi.fn()
+    const Provider = ({ session, children }: { session: { binding: unknown }; children: ReactNode }) => { void session.binding; return createElement('div', { 'data-child-scope': '' }, children) }
+    root = renderRoot(createElement(NativeSideChatPanel, { ctx, threads, record, visible: true, onNew: vi.fn(), onClose, SessionProvider: Provider, renderSlot: () => createElement('div', {}, 'native messages') }))
+    await act(async () => {})
+    expect(root.container.querySelector('[data-child-scope]')).not.toBeNull()
+    await act(async () => { root!.container.querySelector<HTMLButtonElement>('button[aria-label="Close side chat"]')!.click() })
+    expect(close).toHaveBeenCalledOnce()
+    expect(root.container.querySelector('[data-child-scope]')).toBeNull()
+    expect(root.container.querySelector('[role="status"]')?.textContent).toContain('Deleting')
+    await act(async () => { finish() })
+    if (fail) {
+      expect(onClose).not.toHaveBeenCalled()
+      expect(root.container.querySelector('[role="alert"]')?.textContent).toContain('Storage is busy')
+      expect(retain.mock.calls.map(call => call[0])).toEqual(['child', 'child'])
+      expect(root.container.querySelector('[data-child-scope]')).not.toBeNull()
+    } else { expect(onClose).toHaveBeenCalledOnce(); expect(root.container.querySelector('[role="alert"]')).toBeNull() }
+  })
   it('shows the native brand for inherited-only context and removes it after the first new message', () => {
     const nodes = new Map([['old', { anchorSeq: 2 }], ['new', { anchorSeq: 10 }]])
     const view = (order: string[]) => createElement(DisplayBoundary.Provider, { value: 10 }, createElement(NativeConversation, {

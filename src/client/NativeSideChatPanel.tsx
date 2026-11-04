@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
 import { FishLogo } from '@deepseek-ai/dsh-client-ui-primitives'
+import { flushSync } from 'react-dom'
 import type { Context } from '../context-types.ts'
 import type { SideThread, SideThreads } from './store.ts'
 import { CloseDialog } from './CloseDialog.tsx'
@@ -62,14 +63,24 @@ export function NativeSideChatPanel({ ctx, threads, record, visible, onNew, onCl
   const [attempt, setAttempt] = useState(0)
   const [closePrompt, setClosePrompt] = useState(false)
   const [checkingClose, setCheckingClose] = useState(false)
+  const [detaching, setDetaching] = useState(false)
   const checking = useRef(false)
+  const closing = useRef(false)
+  const releaseSession = useRef<() => void>()
   const panel = useRef<HTMLElement>(null)
   const childId = record.childId
   useEffect(() => {
-    if (childId === undefined) return
+    if (childId === undefined || detaching) return
     const sessions = ctx.get('sessions') as unknown as NativeSessions
     const abort = new AbortController()
     let retained: SessionReference | undefined
+    let released = false
+    const release = (): void => {
+      if (released) return
+      released = true; abort.abort(); retained?.release()
+      if (releaseSession.current === release) releaseSession.current = undefined
+    }
+    releaseSession.current = release
     setError(undefined)
     void sessions.refresh().then(async () => {
       abort.signal.throwIfAborted()
@@ -92,8 +103,8 @@ export function NativeSideChatPanel({ ctx, threads, record, visible, onNew, onCl
     }).catch((reason: unknown) => {
       if (!abort.signal.aborted) setError(reason instanceof Error ? reason.message : String(reason))
     })
-    return () => { abort.abort(); retained?.release(); setReference(undefined) }
-  }, [ctx, childId, record, attempt])
+    return () => { release(); setReference(undefined) }
+  }, [ctx, childId, record, attempt, detaching])
   useEffect(() => {
     record.requestClose = () => { void requestClose() }
     return () => { record.requestClose = undefined }
@@ -102,11 +113,22 @@ export function NativeSideChatPanel({ ctx, threads, record, visible, onNew, onCl
     if (visible && reference !== undefined) panel.current?.querySelector<HTMLElement>('[data-composer-input]')?.focus()
   }, [visible, reference])
   const close = async (): Promise<void> => {
+    if (closing.current || record.closed) return
+    closing.current = true
+    // The delete owner's notification revokes this native reference. Remove
+    // its Provider synchronously before starting that transaction, so React
+    // cannot render it again in the gap before the right tab disappears.
+    flushSync(() => { setDetaching(true); setReference(undefined) })
+    releaseSession.current?.()
     try { await threads.close(record.id); onClose() }
-    catch { /* The confirmed deletion failure is retained for retry. */ }
+    catch {
+      // A genuine failure keeps the record and its error. Reopen the same
+      // native identity for inspection/retry; never create a replacement fork.
+      setAttempt(value => value + 1); setDetaching(false)
+    } finally { closing.current = false }
   }
   const requestClose = async (): Promise<void> => {
-    if (checking.current || record.closed || record.closing !== undefined) return
+    if (checking.current || closing.current || record.closed || record.closing !== undefined) return
     if (record.hasConversation) { setClosePrompt(true); return }
     checking.current = true; setCheckingClose(true); setError(undefined)
     try {
@@ -122,8 +144,8 @@ export function NativeSideChatPanel({ ctx, threads, record, visible, onNew, onCl
       <header className={css.header}>
         <span>{copy.title}{record.index > 1 ? ` ${record.index}` : ''}</span>
         <div className={css.headerActions}>
-          <button className={css.icon} type="button" aria-label={copy.newChat} disabled={record.closing !== undefined} onClick={onNew}>＋</button>
-          <button className={css.icon} type="button" aria-label={copy.close} disabled={checkingClose || record.closing !== undefined} onClick={() => { void requestClose() }}>×</button>
+          <button className={css.icon} type="button" aria-label={copy.newChat} disabled={detaching || record.closing !== undefined} onClick={onNew}>＋</button>
+          <button className={css.icon} type="button" aria-label={copy.close} disabled={checkingClose || detaching || record.closing !== undefined} onClick={() => { void requestClose() }}>×</button>
         </div>
       </header>
       {(error ?? record.error) !== undefined && <div className={css.error} role="alert">{error ?? record.error}<button className={css.retry} type="button" onClick={() => {
@@ -131,10 +153,10 @@ export function NativeSideChatPanel({ ctx, threads, record, visible, onNew, onCl
         else setAttempt(value => value + 1)
       }}>{copy.retry}</button></div>}
       <div className={css.nativeContent}>
-        {reference === undefined ? <div className={css.empty} role="status">{copy.loadingChat}</div>
+        {detaching ? <div className={css.empty} role="status">{copy.deleting}</div> : reference === undefined ? <div className={css.empty} role="status">{copy.loadingChat}</div>
           : <DisplayBoundary.Provider value={record.displayStartSeq}><ConversationActivity.Provider value={{ hasConversation: record.hasConversation === true, mark: () => { threads.markConversation(record) }, locale: locale.active }}><SessionProvider session={reference}>{renderSlot(NATIVE_CONVERSATION_SLOT, {})}</SessionProvider></ConversationActivity.Provider></DisplayBoundary.Provider>}
       </div>
-      {closePrompt && <CloseDialog copy={copy} busy={record.closing !== undefined} error={record.error} cancel={() => { setClosePrompt(false) }} confirm={() => { void close() }} />}
+      {closePrompt && <CloseDialog copy={copy} busy={detaching || record.closing !== undefined} error={record.error} cancel={() => { setClosePrompt(false) }} confirm={() => { void close() }} />}
     </section>
   )
 }

@@ -87,7 +87,7 @@
 在 PowerShell 中执行：
 
 ```powershell
-dsh plugin --profile desktop add https://github.com/qiaozheng9/dsh-side-chat/releases/download/v0.2.3/dsh-side-chat-0.2.3.tgz
+dsh plugin --profile desktop add https://github.com/qiaozheng9/dsh-side-chat/releases/download/v0.2.4/dsh-side-chat-0.2.4.tgz
 ```
 
 **重启 DSH，在已有聊天内容的主对话输入 `/side`。** 全新且未聊天的主对话不提供此命令。发行包已预构建，无需在本机编译。

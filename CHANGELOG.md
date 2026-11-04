@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.4
+
+- Fix the brief red `Session reference ... is released` error during side-chat deletion. Synchronously unmount the native SessionProvider and release its reference before the permanent-deletion transaction revokes the session.
+- Show the deleting state during cleanup. If deletion genuinely fails, keep the error and reopen the same native session for retry without creating a replacement fork.
+- Verify the complete closing interval with DOM-mutation and animation-frame monitoring in the installed Desktop app: empty panel close, native tab close and confirmed close after chatting produce no alerts or reference errors, and still remove session storage and temporary ownership.
+
 ## 0.2.3
 
 - Expose `/side` only after the main chat has messages. Empty chats show an unavailable-command message without sending the command to the model; stale side tabs restored into an empty main chat are removed.

@@ -76,7 +76,7 @@ The transcript and composer use the actual native components. The **＋** menu f
 Run in PowerShell:
 
 ```powershell
-dsh plugin --profile desktop add https://github.com/qiaozheng9/dsh-side-chat/releases/download/v0.2.3/dsh-side-chat-0.2.3.tgz
+dsh plugin --profile desktop add https://github.com/qiaozheng9/dsh-side-chat/releases/download/v0.2.4/dsh-side-chat-0.2.4.tgz
 ```
 
 **Restart DSH, then enter `/side` in a main chat with existing messages.** The command is unavailable in a fresh empty conversation. This prebuilt package requires no local compilation.
