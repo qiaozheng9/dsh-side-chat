@@ -6,7 +6,7 @@ import { createTemporarySessions, type TemporarySessions } from './temporary-ses
 
 interface SessionView {
   header: { cwd?: string; agentPreset?: string; parentSession?: string }
-  snapshotEvents(): readonly { seq: number }[]
+  snapshotEvents(): readonly { seq: number; type?: string }[]
 }
 interface Controller {
   fork(request: { sessionId: string; atSeq?: number }): Promise<{ sessionId: string }>
@@ -23,6 +23,7 @@ function deletionReceipt(id: string): { completed: boolean; pending: boolean } {
 }
 
 export function buildNativeSidechatApi(ctx: Context, owned: TemporarySessions = createTemporarySessions(ctx)) {
+  const cutoffs = new Map<string, number>()
   const clientOf = (payload: unknown): string | undefined => {
     const value = (payload as { clientId?: unknown } | null)?.clientId
     if (value === undefined) return undefined
@@ -47,12 +48,13 @@ export function buildNativeSidechatApi(ctx: Context, owned: TemporarySessions = 
       const native = controller()
       await owned.list()
       const source = ctx.sessions.get(sessionId) as SessionView | undefined
+      if (source !== undefined && !source.snapshotEvents().some(event => event.type === 'user/message' || event.type === 'assistant/message')) {
+        throw new SidebarError('bad-request', '主对话有聊天内容后才能打开侧边对话。')
+      }
       // The native fork owner can read cold sources. For a live source,
       // request its exact current prefix, including a safely closed open turn.
       const tail = source?.snapshotEvents().at(-1)?.seq
-      const child = source !== undefined && tail === undefined
-        ? await native.create({ cwd: source.header.cwd, agentPreset: source.header.agentPreset })
-        : await native.fork({ sessionId, ...(tail === undefined ? {} : { atSeq: tail }) })
+      const child = await native.fork({ sessionId, ...(tail === undefined ? {} : { atSeq: tail }) })
       if (child.sessionId === sessionId) throw new SidebarError('sidechat-error', 'Native fork returned the source session identity.', 500)
       await owned.add(child.sessionId, clientId)
       const permissions = ctx.get('permissionPresets') as {
@@ -71,6 +73,7 @@ export function buildNativeSidechatApi(ctx: Context, owned: TemporarySessions = 
       // drafts instead of hiding an already-created fork from its owner.
       if (childSession === undefined) throw new SidebarError('sidechat-error', 'The native fork is not available for display initialization.', 500)
       const displayStartSeq = (childSession.snapshotEvents().at(-1)?.seq ?? -1) + 1
+      cutoffs.set(child.sessionId, displayStartSeq)
       return { childId: child.sessionId, displayStartSeq }
     },
     'sidechat.cancel': async (payload: unknown) => {
@@ -91,12 +94,15 @@ export function buildNativeSidechatApi(ctx: Context, owned: TemporarySessions = 
         throw new SidebarError('sidechat-error', 'Temporary session storage has not been permanently deleted.', 409)
       }
       await owned.remove(childId)
+      cutoffs.delete(childId)
       return { accepted: true }
     },
     'sidechat.info': async (payload: unknown) => {
       const id = await assertOwned(payload)
       const agent = (ctx.get('agents') as { get(id: string): { status: string } | undefined } | undefined)?.get(id)
-      return { live: agent !== undefined, status: agent?.status ?? 'idle' }
+      const session = ctx.sessions.get(id) as SessionView | undefined
+      const hasConversation = agent?.status === 'running' || session?.snapshotEvents().some(event => event.seq >= (cutoffs.get(id) ?? 0) && ['user/message', 'assistant/message', 'turn/start'].includes(event.type ?? '')) === true
+      return { live: agent !== undefined, status: agent?.status ?? 'idle', hasConversation }
     },
   }
 }

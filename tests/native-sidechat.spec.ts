@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import type { Context } from '../src/context-types.ts'
 import { buildNativeSidechatApi } from '../src/native-sidechat.ts'
 
-function fixture(events: { seq: number }[] = [{ seq: 0 }, { seq: 1 }, { seq: 2 }]) {
+function fixture(events: { seq: number; type?: string }[] = [{ seq: 0, type: 'user/message' }, { seq: 1 }, { seq: 2 }]) {
   const parent = { header: { cwd: '/workspace', agentPreset: 'native' }, snapshotEvents: () => events }
   const child = { header: { parentSession: 'parent' }, snapshotEvents: () => [...events, { seq: 9 }] }
   const fork = vi.fn().mockResolvedValue({ sessionId: 'child' })
@@ -49,11 +49,19 @@ describe('native temporary forks', () => {
     expect(h.set).toHaveBeenCalledExactlyOnceWith(h.child, 'workspace-write')
     expect(h.clear).toHaveBeenCalledOnce()
   })
-  it('creates an ordinary native session when there is no history to fork yet', async () => {
+  it('refuses an empty main conversation without creating a temporary session', async () => {
     const h = fixture([])
-    await h.api['sidechat.start']({ sessionId: 'parent' })
+    await expect(h.api['sidechat.start']({ sessionId: 'parent' })).rejects.toThrow('主对话有聊天内容')
     expect(h.fork).not.toHaveBeenCalled()
-    expect(h.create).toHaveBeenCalledExactlyOnceWith({ cwd: '/workspace', agentPreset: 'native' })
+    expect(h.create).not.toHaveBeenCalled()
+  })
+  it('ignores inherited history when deciding whether the side chat has started', async () => {
+    const h = fixture()
+    await h.api['sidechat.start']({ sessionId: 'parent' })
+    expect((await h.api['sidechat.info']({ childId: 'child' })).hasConversation).toBe(false)
+    const before = h.child.snapshotEvents()
+    h.child.snapshotEvents = () => [...before, { seq: 10, type: 'user/message' }]
+    expect((await h.api['sidechat.info']({ childId: 'child' })).hasConversation).toBe(true)
   })
   it('leaves cold-source observation and fork balancing to the native owner', async () => {
     const h = fixture()

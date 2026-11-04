@@ -35,6 +35,10 @@ interface BodyProps extends NativeConversationHost {
   useTabInfo(): TabInfo
   open(parentId: string, question?: string, quote?: string): void
 }
+function mainHasConversation(ctx: Context, id: string): boolean {
+  const sessions = ctx.get('sessions') as unknown as { list?: { getSnapshot(): { byId: Record<string, { blank?: boolean }> } } } | undefined
+  return sessions?.list?.getSnapshot().byId[id]?.blank === false
+}
 function SideBody(props: BodyProps): React.ReactNode {
   const { ctx, sessionId, threads, bindings, open } = props
   const { tab } = props.useTabInfo()
@@ -43,6 +47,7 @@ function SideBody(props: BodyProps): React.ReactNode {
     const previous = bindings.get(key)
     if (previous !== undefined) return previous
     if (tab.signal.aborted) return { id: tab.id, parentId: sessionId, index: 1, question: '', closed: true }
+    if (!mainHasConversation(ctx, sessionId)) return { id: tab.id, parentId: sessionId, index: 1, question: '', closed: true, unavailable: true }
     const seed = tab.navigation.params?.sideId
     const thread = (seed === undefined ? undefined : threads.get(seed)) ?? threads.create(sessionId)
     bindings.set(key, thread)
@@ -51,6 +56,9 @@ function SideBody(props: BodyProps): React.ReactNode {
     tab.signal.addEventListener('abort', () => { bindings.delete(key) }, { once: true })
     return thread
   })
+  useEffect(() => {
+    if ('unavailable' in record && record.unavailable === true && !tab.signal.aborted) tab.actions.close()
+  }, [record, tab.actions, tab.signal])
   if (record.closed) return null
   return <RenderBoundary className={css.error}><NativeSideChatPanel ctx={ctx} threads={threads} record={record} visible={tab.visible} onNew={() => { open(sessionId) }} onClose={() => { tab.actions.close() }} SessionProvider={props.SessionProvider} renderSlot={props.renderSlot} /></RenderBoundary>
 }
@@ -110,7 +118,10 @@ export function apply(ctx: Context): void {
   void threads.initialize().catch(error => { console.error('[dsh-side] temporary-session cleanup failed', error) })
   const bindings = new Map<string, SideThread>()
   const copy = () => sideCopy(ctx.locale.getSnapshot().active)
+  const sessions = ctx.get('sessions') as unknown as { list: { getSnapshot(): { byId: Record<string, { blank?: boolean }> }; subscribe(listener: () => void): () => void } }
+  const available = (id: string): boolean => mainHasConversation(ctx, id)
   const open = (parentId: string, question = '', quote?: string): void => {
+    if (!available(parentId)) throw new Error(copy().contextRequired)
     const controller = ctx.get('sidebarRight') as unknown as SideController | undefined
     if (controller === undefined) throw new Error('The host right sidebar is unavailable.')
     const record = threads.create(parentId, question, quote)
@@ -184,9 +195,9 @@ export function apply(ctx: Context): void {
     disposers.push(ctx.slots.inject('conversation.input.left', () => ctx.slots.register({
       name: 'conversation.input.left', id: 'dsh-side:open', order: 90,
       inject: (sessionId: string) => ({ ctx, sessionId }),
-    }, ({ sessionId }: { sessionId: string }) => <button type="button" className={css.icon} title={copy().description} aria-label={copy().title} onClick={() => { open(sessionId) }}>
+    }, function SideChatButton({ sessionId, useSession }: { sessionId: string; useSession<T>(selector: (snapshot: { blank: boolean }) => T): T }) { return useSession(snapshot => snapshot.blank) ? null : <button type="button" className={css.icon} title={copy().description} aria-label={copy().title} onClick={() => { open(sessionId) }}>
       <svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.4" aria-hidden="true"><rect x="2.5" y="3" width="15" height="14" rx="3"/><path d="M11.5 3v14M5.5 7h3M5.5 10h3"/></svg>
-    </button>)))
+    </button> })))
       } catch (error) { release(); throw error }
       return release
     }, 'sidechat: native registrations')
@@ -201,6 +212,6 @@ export function apply(ctx: Context): void {
   })
   ctx.inject(['inputTriggers'], injected => {
     const triggers = injected.get('inputTriggers') as unknown as InputTriggers
-    injected.effect(() => triggers.registerSource(sideCommandSource(open, copy)), 'sidechat: /side')
+    injected.effect(() => triggers.registerSource(sideCommandSource(open, copy, available, listener => sessions.list.subscribe(listener))), 'sidechat: /side')
   })
 }

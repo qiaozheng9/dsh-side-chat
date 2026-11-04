@@ -7,6 +7,7 @@ export interface SideThread {
   index: number
   childId?: string
   displayStartSeq?: number
+  hasConversation?: boolean
   ready?: Promise<void>
   error?: string
   quote?: string
@@ -69,6 +70,7 @@ export function createSideThreads(refreshCatalog?: () => Promise<unknown>) {
     return record.closing
   }
   return {
+    markConversation(record: SideThread) { if (!record.hasConversation && !record.closed) { record.hasConversation = true; emit() } },
     visibility, initialize,
     subscribe(listener: () => void) { listeners.add(listener); return () => { listeners.delete(listener) } },
     version: () => revision,
@@ -77,7 +79,7 @@ export function createSideThreads(refreshCatalog?: () => Promise<unknown>) {
       // Never evict an active thread to satisfy a cache limit.
       if (records.size >= 64) throw new Error('Close a side chat before opening another one.')
       const index = [...records.values()].filter(record => record.parentId === parentId).reduce((max, record) => Math.max(max, record.index), 0) + 1
-      const record: SideThread = { id: crypto.randomUUID(), parentId, index, quote, question, closed: false }
+      const record: SideThread = { id: crypto.randomUUID(), parentId, index, quote, question, hasConversation: question.trim() !== '', closed: false }
       records.set(record.id, record)
       start(record)
       return record

@@ -1,7 +1,11 @@
 .panel { position: relative; display: flex; flex-direction: column; height: 100%; min-height: 0; color: var(--dsw-alias-label-primary); background: var(--dsw-alias-bg-base); font-family: var(--dsw-font-family, system-ui, sans-serif); font-size: 14px; line-height: 1.5; }
 .header { display: flex; align-items: center; justify-content: space-between; flex: none; height: 46px; padding: 0 16px; font-weight: 500; }
 .headerActions { display: flex; gap: 4px; }
-.nativeContent { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+.nativeContent { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; overflow: hidden; position: relative; }
+.welcome { position: absolute; inset: 0 20px 150px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; text-align: center; pointer-events: none; color: var(--dsw-alias-label-secondary); }
+.welcomeLogo { flex: none; color: var(--dsw-alias-state-business-primary, #4d6bfe); margin-bottom: 4px; }
+.welcome h2 { margin: 0; font-size: 20px; line-height: 1.4; font-weight: 500; color: var(--dsw-alias-label-primary); }
+.welcome p { margin: 0; max-width: 300px; font-size: 13px; line-height: 1.7; color: var(--dsw-alias-label-tertiary); }
 .nativeContent > [data-conversation-content] { flex: 1; min-height: 0; }
 .icon { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; flex: none; border: 0; border-radius: 7px; background: transparent; color: var(--dsw-alias-label-secondary); font: inherit; font-size: 19px; cursor: pointer; }
 .icon:hover, .copy:hover { background: var(--dsw-alias-interactive-bg-hover); color: var(--dsw-alias-label-primary); }

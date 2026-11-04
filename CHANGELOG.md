@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.3
+
+- Expose `/side` only after the main chat has messages. Empty chats show an unavailable-command message without sending the command to the model; stale side tabs restored into an empty main chat are removed.
+- Close untouched and draft-only side chats directly through permanent cleanup. Keep deletion confirmation after a new side message is submitted, counting only activity after the inherited context boundary.
+- Show DSH's native DeepSeek mark and a context hint on the empty side page; hide it when the conversation starts while retaining the native composer and transcript.
+- Verify both header and native tab close controls, first-message confirmation, draft cleanup, contextual replies and main-chat isolation in the installed Windows Desktop application.
+
 ## 0.2.2
 
 - Exclude temporary side chats from the native left conversation list and search without removing the native catalog metadata needed by their composers and tools. Hold list updates during creation to prevent a brief visible row.

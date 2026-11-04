@@ -2,6 +2,23 @@ import { describe, expect, it, vi } from 'vitest'
 import { sideCommandSource, sideQuestion } from '../src/client/commands.ts'
 import { sideCopy } from '../src/client/locales.ts'
 describe('/side host input source', () => {
+  it('exposes no side command in an empty conversation and rechecks restored claims', async () => {
+    let available = false
+    const open = vi.fn(), source = sideCommandSource(open, () => sideCopy('en'), () => available)
+    const session = { sessionId: 'main' }
+    expect(source.lexicon(session)).toEqual([])
+    expect(await source.candidates(session, { query: 'side', position: 'leading' })).toEqual([])
+    expect(source.matchSpace(session, '/side')).toBeUndefined()
+    expect(await source.matchClaim(session, '/side')).toBeUndefined()
+    await expect(source.matchEnter(session, '/side', new AbortController().signal, { attachments: 0 })).rejects.toThrow('unavailable in an empty conversation')
+    expect(source.onPick({ session })).toBeUndefined()
+    available = true
+    expect(source.lexicon(session)).toEqual(['side'])
+    const claim = await source.matchClaim(session, '/side')
+    available = false
+    expect(await claim!.submit('', {} as never, [])).toHaveProperty('kind', 'error')
+    expect(open).not.toHaveBeenCalled()
+  })
   it('matches only the complete command and preserves multiline questions', () => {
     expect(sideQuestion('/side')).toBe('')
     expect(sideQuestion(' /side 为什么？\n具体说明 ')).toBe('为什么？\n具体说明')

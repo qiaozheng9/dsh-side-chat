@@ -40,6 +40,17 @@ function context(failTitle = false) {
   return { ctx: ctx as unknown as Context, kinds, slots, registrations, closeTab: (id: string, tab: { id: string }) => closeHandler?.(id, tab), source, removed, closed, dispose: () => { cleanup.reverse().forEach(off => off()) } }
 }
 describe('native side chat contribution', () => {
+  it('removes a restored side tab in an empty main chat without creating a fork', () => {
+    const h = context(); act(() => { apply(h.ctx) })
+    const entry = h.registrations.get('sidebar.right.pane.tab')!
+    const face = entry.options.inject!('empty-parent')
+    const create = vi.spyOn(face.threads as { create(): unknown }, 'create')
+    const close = vi.fn(), signal = new AbortController().signal
+    const Component = entry.component as ComponentType<Record<string, unknown>>
+    const root = renderRoot(createElement(Component, { ...face, useTabInfo: () => ({ tab: { id: 'restored', signal, actions: { close } } }) }))
+    expect(create).not.toHaveBeenCalled(); expect(close).toHaveBeenCalledOnce()
+    root.unmount(); act(() => { h.dispose() })
+  })
   it('does not create a replacement fork when a confirmed-closed native tab body remounts during removal', () => {
     const h = context(); act(() => { apply(h.ctx) })
     const entry = h.registrations.get('sidebar.right.pane.tab')!

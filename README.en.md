@@ -76,10 +76,10 @@ The transcript and composer use the actual native components. The **＋** menu f
 Run in PowerShell:
 
 ```powershell
-dsh plugin --profile desktop add https://github.com/qiaozheng9/dsh-side-chat/releases/download/v0.2.2/dsh-side-chat-0.2.2.tgz
+dsh plugin --profile desktop add https://github.com/qiaozheng9/dsh-side-chat/releases/download/v0.2.3/dsh-side-chat-0.2.3.tgz
 ```
 
-**Restart DSH, then enter `/side` in the main chat.** This is a prebuilt package; installing it requires no local compilation.
+**Restart DSH, then enter `/side` in a main chat with existing messages.** The command is unavailable in a fresh empty conversation. This prebuilt package requires no local compilation.
 
 Disable another `/side` provider before enabling this one. Other DSH versions, standalone Web deployments and operating systems have not completed end-to-end validation.
 
@@ -103,7 +103,7 @@ You can also select text in the main transcript and choose **Ask in side chat**.
 - Use **＋** in the side-panel header to start another side chat.
 - Use **＋ → Download logs** before closing if you want to retain the results.
 
-Choosing **Delete and close** stops the side activity and permanently cleans up its conversation data. Cancelling keeps it open.
+The empty side page shows DSH’s native brand mark and a context hint. A side chat with no new messages closes and cleans up directly, including draft-only input. After a message is sent, **Delete and close** confirms permanent cleanup; cancelling keeps it open.
 
 ## FAQ
 

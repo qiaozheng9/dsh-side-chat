@@ -1,10 +1,14 @@
-import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
+import { createContext, useContext, useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
+import { FishLogo } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { Context } from '../context-types.ts'
 import type { SideThread, SideThreads } from './store.ts'
 import { CloseDialog } from './CloseDialog.tsx'
 import { sideCopy } from './locales.ts'
 import css from './SideChatPanel.module.css'
 import { DisplayBoundary } from './display-boundary.tsx'
+import { sideApi } from './api.ts'
+
+const ConversationActivity = createContext<{ hasConversation: boolean; mark(): void; locale: string } | undefined>(undefined)
 
 export const NATIVE_CONVERSATION_SLOT = 'dsh-side-chat.conversation'
 interface SessionReference {
@@ -23,14 +27,26 @@ interface NativeSessions {
 
 /** The native Factory owns the whole transcript, editor and command menu. */
 export function NativeConversation({ useSession, useConversation, renderFactorySlot }: {
-  useSession<T>(selector: (session: { blank: boolean; awaitingFirstTurn: boolean; running: boolean; promptAttempted: boolean; openState: string }) => T): T
-  useConversation<T>(selector: (conversation: { activeTargets: ReadonlySet<string> }) => T): T
+  useSession<T>(selector: (session: { blank: boolean; awaitingFirstTurn: boolean; running: boolean; promptAttempted: boolean; openState: string; pendingSubmissions?: readonly unknown[] }) => T): T
+  useConversation<T>(selector: (conversation: { activeTargets: ReadonlySet<string>; views?: { get(name: string): { order: readonly string[]; nodes: { get(key: string): { anchorSeq: number } | undefined } } | undefined } }) => T): T
   renderFactorySlot(name: string, props: Record<string, unknown>): ReactNode
 }): ReactNode {
   const session = useSession(value => value)
+  const boundary = useContext(DisplayBoundary)
+  const state = useContext(ConversationActivity)
+  const newRows = useConversation(value => {
+    const chat = value.views?.get('chat')
+    return chat?.order.some(key => (chat.nodes.get(key)?.anchorSeq ?? -1) >= (boundary ?? 0)) === true
+  })
+  const hasConversation = state?.hasConversation === true || newRows || session.running || (session.pendingSubmissions?.length ?? 0) > 0
+  useEffect(() => { if (hasConversation) state?.mark() }, [hasConversation, state])
   const active = useConversation(value => value.activeTargets.size > 0) || (!session.blank && !session.awaitingFirstTurn) || session.running
   const hero = !active && session.openState === 'open' && !session.promptAttempted
-  return renderFactorySlot('conversation.content', { variant: 'embedded', phase: hero ? 'hero' : session.openState === 'loading' ? 'settling' : 'active', hero })
+  const copy = sideCopy(state?.locale ?? 'en')
+  return <>{renderFactorySlot('conversation.content', { variant: 'embedded', phase: hero ? 'hero' : session.openState === 'loading' ? 'settling' : 'active', hero })}
+    {!hasConversation && session.openState === 'open' && <div className={css.welcome} data-side-welcome="">
+      <FishLogo size={58} className={css.welcomeLogo} /><h2>{copy.empty}</h2><p>{copy.hint}</p>
+    </div>}</>
 }
 
 /** Only lifetime chrome belongs to this plugin. No copied chat renderer,
@@ -45,6 +61,8 @@ export function NativeSideChatPanel({ ctx, threads, record, visible, onNew, onCl
   const [error, setError] = useState<string>()
   const [attempt, setAttempt] = useState(0)
   const [closePrompt, setClosePrompt] = useState(false)
+  const [checkingClose, setCheckingClose] = useState(false)
+  const checking = useRef(false)
   const panel = useRef<HTMLElement>(null)
   const childId = record.childId
   useEffect(() => {
@@ -77,9 +95,9 @@ export function NativeSideChatPanel({ ctx, threads, record, visible, onNew, onCl
     return () => { abort.abort(); retained?.release(); setReference(undefined) }
   }, [ctx, childId, record, attempt])
   useEffect(() => {
-    record.requestClose = () => { setClosePrompt(true) }
+    record.requestClose = () => { void requestClose() }
     return () => { record.requestClose = undefined }
-  }, [record])
+  })
   useEffect(() => {
     if (visible && reference !== undefined) panel.current?.querySelector<HTMLElement>('[data-composer-input]')?.focus()
   }, [visible, reference])
@@ -87,13 +105,25 @@ export function NativeSideChatPanel({ ctx, threads, record, visible, onNew, onCl
     try { await threads.close(record.id); onClose() }
     catch { /* The confirmed deletion failure is retained for retry. */ }
   }
+  const requestClose = async (): Promise<void> => {
+    if (checking.current || record.closed || record.closing !== undefined) return
+    if (record.hasConversation) { setClosePrompt(true); return }
+    checking.current = true; setCheckingClose(true); setError(undefined)
+    try {
+      await record.ready
+      const activity = record.childId === undefined ? undefined : await sideApi.info(record.childId)
+      if (activity?.hasConversation === true || record.hasConversation) { threads.markConversation(record); setClosePrompt(true) }
+      else await close()
+    } catch (reason) { setError(reason instanceof Error ? reason.message : String(reason)) }
+    finally { checking.current = false; setCheckingClose(false) }
+  }
   return (
     <section ref={panel} className={css.panel} data-dsh-side-chat="" data-dsh-native-side-chat="" data-child-session={childId} aria-label={copy.title}>
       <header className={css.header}>
         <span>{copy.title}{record.index > 1 ? ` ${record.index}` : ''}</span>
         <div className={css.headerActions}>
           <button className={css.icon} type="button" aria-label={copy.newChat} disabled={record.closing !== undefined} onClick={onNew}>＋</button>
-          <button className={css.icon} type="button" aria-label={copy.close} disabled={record.closing !== undefined} onClick={() => { setClosePrompt(true) }}>×</button>
+          <button className={css.icon} type="button" aria-label={copy.close} disabled={checkingClose || record.closing !== undefined} onClick={() => { void requestClose() }}>×</button>
         </div>
       </header>
       {(error ?? record.error) !== undefined && <div className={css.error} role="alert">{error ?? record.error}<button className={css.retry} type="button" onClick={() => {
@@ -102,7 +132,7 @@ export function NativeSideChatPanel({ ctx, threads, record, visible, onNew, onCl
       }}>{copy.retry}</button></div>}
       <div className={css.nativeContent}>
         {reference === undefined ? <div className={css.empty} role="status">{copy.loadingChat}</div>
-          : <DisplayBoundary.Provider value={record.displayStartSeq}><SessionProvider session={reference}>{renderSlot(NATIVE_CONVERSATION_SLOT, {})}</SessionProvider></DisplayBoundary.Provider>}
+          : <DisplayBoundary.Provider value={record.displayStartSeq}><ConversationActivity.Provider value={{ hasConversation: record.hasConversation === true, mark: () => { threads.markConversation(record) }, locale: locale.active }}><SessionProvider session={reference}>{renderSlot(NATIVE_CONVERSATION_SLOT, {})}</SessionProvider></ConversationActivity.Provider></DisplayBoundary.Provider>}
       </div>
       {closePrompt && <CloseDialog copy={copy} busy={record.closing !== undefined} error={record.error} cancel={() => { setClosePrompt(false) }} confirm={() => { void close() }} />}
     </section>

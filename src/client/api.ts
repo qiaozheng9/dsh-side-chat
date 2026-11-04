@@ -66,7 +66,7 @@ export const sideApi = {
   compact: (childId: string) => sideCall<{ text: string }>('sidechat.compact', { childId }),
   export: (childId: string) => sideCall<{ fileName: string; data: string }>('sidechat.export', { childId }),
   model: (childId: string, selection: SidechatModelSelection) => sideCall<{ accepted: true; selection: SidechatModelSelection }>('sidechat.model', { childId, ...selection }),
-  info: (childId: string, signal?: AbortSignal) => sideCall<SidechatThreadInfo>('sidechat.info', { childId }, signal),
+  info: (childId: string, signal?: AbortSignal) => sideCall<SidechatThreadInfo & { hasConversation?: boolean }>('sidechat.info', { childId }, signal),
   events: (childId: string, afterSeq?: number, signal?: AbortSignal) => sideCall<SideFeed>('sidechat.events', { childId, afterSeq }, signal),
   dequeue: (childId: string, messageId: string) => sideCall('sidechat.dequeue', { childId, messageId }),
 }

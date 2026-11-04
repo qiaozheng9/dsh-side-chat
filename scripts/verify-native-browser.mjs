@@ -20,6 +20,7 @@ const server = createServer(async (req, res) => {
     if (path === '/native/prompt') { expect(children.has(payload.id)).toBe(true); res.writeHead(200, { 'content-type': 'application/json' }); res.end(JSON.stringify({ answer: `NATIVE_ANSWER:${payload.id}` })); return }
     let value = {}
     if (path.endsWith('/sidechat.temporary')) value = { childIds: [...children], abandonedIds: [] }
+    else if (path.endsWith('/sidechat.info')) value = { live: true, status: 'idle', hasConversation: calls.some(c => c.path === '/native/prompt' && c.payload.id === payload.childId) }
     else if (path.endsWith('/sidechat.start')) { const id = `child-${++serial}`; children.add(id); value = { childId: id, displayStartSeq: 0 } }
     else if (path.endsWith('/preview')) value = { sessionId: payload.sessionId, token: 'test-confirmed' }
     else if (path.endsWith('/execute')) { children.delete(payload.sessionId); value = { sessionIds: [payload.sessionId] } }
@@ -54,14 +55,14 @@ try {
   await page.setViewportSize({ width: 390, height: 844 })
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390)
   await panel().getByRole('button', { name: '关闭侧边对话', exact: true }).click()
-  await page.getByRole('dialog').getByRole('button', { name: '取消', exact: true }).click()
-  await expect(panel().getByRole('textbox', { name: '原生输入' })).toContainText('选中的参考文字')
-  await panel().getByRole('button', { name: '关闭侧边对话', exact: true }).click()
-  await page.getByRole('dialog').getByRole('button', { name: '删除并关闭', exact: true }).click()
   await expect(page.locator('[data-dsh-native-side-chat]')).toHaveCount(2)
+  await expect(page.getByRole('dialog')).toHaveCount(0)
   expect(children.has('child-3')).toBe(false)
   expect(children.has('child-1')).toBe(true)
   expect(children.has('child-2')).toBe(true)
+  await panel().getByRole('button', { name: '关闭侧边对话', exact: true }).click()
+  await expect(page.getByRole('dialog')).toBeVisible()
+  await page.getByRole('dialog').getByRole('button', { name: '取消', exact: true }).click()
   expect(calls.some(c => /sidechat\.(events|prompt|taskState)/.test(c.path))).toBe(false)
   expect(errors).toEqual([])
   console.log(JSON.stringify({ result: 'passed', independentNativeBindings: 3, pluginOwnStreaming: false, browserErrors: 0 }))
